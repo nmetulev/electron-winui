@@ -1,34 +1,10 @@
-const fs = require('node:fs');
-const path = require('node:path');
+const {
+  bootstrapDllPath,
+  initializeWindowsAppSdk,
+  loadRuntimeContract,
+} = require('./windows-app-sdk');
 
 let runtime;
-
-function bootstrapDllPath() {
-  const architecture = { arm64: 'arm64', x64: 'x64' }[process.arch];
-  if (!architecture) {
-    throw new Error(`Unsupported Electron architecture: ${process.arch}`);
-  }
-
-  const configured = process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH;
-  if (configured && fs.existsSync(configured)) {
-    return configured;
-  }
-
-  const bundled = path.join(
-    __dirname,
-    'runtime',
-    architecture,
-    'Microsoft.WindowsAppRuntime.Bootstrap.dll'
-  );
-  if (fs.existsSync(bundled)) {
-    return bundled;
-  }
-
-  throw new Error(
-    `Windows App SDK bootstrap DLL was not found for ${architecture}. ` +
-      'Reinstall electron-winui or set WINAPPSDK_BOOTSTRAP_DLL_PATH.'
-  );
-}
 
 function createRuntime() {
   const { app } = require('electron');
@@ -36,9 +12,10 @@ function createRuntime() {
     throw new Error('WinUIWindow can only be created after app.whenReady().');
   }
 
+  const windowsAppSdk = loadRuntimeContract();
   process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH = bootstrapDllPath();
   const { initWinappsdk, roInitialize } = require('@microsoft/dynwinrt');
-  initWinappsdk(2, 2);
+  initializeWindowsAppSdk(initWinappsdk, windowsAppSdk);
   roInitialize(0);
 
   const bindings = require('./bindings');

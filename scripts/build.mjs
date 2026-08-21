@@ -1,10 +1,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  assertRestoredWindowsAppSdk,
+  findBootstrapDll,
+  resolveWindowsAppSdkContract,
+  runtimeContractJson,
+} from './windows-app-sdk.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = path.join(packageRoot, 'dist');
 const bindingsDir = path.join(packageRoot, '.winapp', 'bindings');
+const windowsAppSdk = resolveWindowsAppSdkContract({ packageRoot });
+const restoreMetadata = assertRestoredWindowsAppSdk(
+  packageRoot,
+  windowsAppSdk
+);
 
 if (!fs.existsSync(path.join(bindingsDir, 'index.js'))) {
   throw new Error(
@@ -41,53 +52,12 @@ fs.copyFileSync(
   path.join(distDir, 'electron-pmv2.manifest')
 );
 
-const runtimeVersion = '2.1.0';
-const nugetRoot = path.join(
-  process.env.NUGET_PACKAGES ??
-    path.join(process.env.USERPROFILE ?? '', '.nuget', 'packages'),
-  'microsoft.windowsappsdk.foundation'
-);
-
-function nugetBootstrapCandidates(arch) {
-  if (!fs.existsSync(nugetRoot)) {
-    return [];
-  }
-
-  // Prefer the pinned version, then fall back to any other restored version so
-  // a clean CI restore is not tied to one exact Windows App SDK build.
-  const versions = fs
-    .readdirSync(nugetRoot)
-    .sort((a, b) => (a === runtimeVersion ? -1 : b === runtimeVersion ? 1 : 0));
-
-  return versions.map((version) =>
-    path.join(
-      nugetRoot,
-      version,
-      'runtimes',
-      `win-${arch}`,
-      'native',
-      'Microsoft.WindowsAppRuntime.Bootstrap.dll'
-    )
-  );
-}
-
 for (const arch of ['arm64', 'x64']) {
-  const candidates = [
-    path.join(
-      packageRoot,
-      '.winapp',
-      'bin',
-      arch,
-      'Microsoft.WindowsAppRuntime.Bootstrap.dll'
-    ),
-    ...nugetBootstrapCandidates(arch),
-  ];
-  const source = candidates.find((candidate) => fs.existsSync(candidate));
-  if (!source) {
-    throw new Error(
-      `Windows App SDK bootstrap DLL was not found for ${arch}. Run \`npm run restore\` before \`npm run build\`.`
-    );
-  }
+  const source = findBootstrapDll(
+    arch,
+    windowsAppSdk,
+    restoreMetadata
+  );
 
   const runtimeDir = path.join(distDir, 'runtime', arch);
   fs.mkdirSync(runtimeDir, { recursive: true });
@@ -97,4 +67,11 @@ for (const arch of ['arm64', 'x64']) {
   );
 }
 
-console.log(`Built ${path.relative(packageRoot, distDir)}`);
+fs.writeFileSync(
+  path.join(distDir, 'windows-app-sdk.runtime.json'),
+  runtimeContractJson(windowsAppSdk)
+);
+
+console.log(
+  `Built ${path.relative(packageRoot, distDir)} with Windows App SDK ${windowsAppSdk.packageVersion}`
+);
