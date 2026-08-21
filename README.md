@@ -6,6 +6,8 @@
 > This is a experimental and only tested with Electron 43. It implements a useful subset of
 > `BrowserWindow`; it is not a universal drop-in replacement.
 
+https://github.com/user-attachments/assets/f147160e-484b-4675-9bea-ece68e6d5885
+
 ## Create a WinUI window
 
 Install the package alongside Electron:
