@@ -8,8 +8,56 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build and test (Windows)
+  compatibility:
+    name: Node ${{ matrix.node }} / Electron ${{ matrix.electron }} / x64
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: 22.12.0
+            electron: 43.0.0
+          - node: 22.12.0
+            electron: 43.4.0
+          - node: 24
+            electron: 43.4.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Select Electron compatibility version
+        run: npm install --no-save --package-lock=false electron@${{ matrix.electron }}
+
+      - name: Restore Windows App SDK metadata
+        run: npm run restore
+
+      - name: Generate WinRT bindings
+        run: npm run generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare Electron executable (CLI validation)
+        run: node dist/cli.js prepare
+
+      - name: Test
+        run: |
+          npm run test:types
+          npm run test:unit
+          npm run test:smoke
+
+  package:
+    name: Pack, install, and consume (x64 + arm64 artifacts)
     runs-on: windows-latest
 
     steps:
@@ -31,14 +79,50 @@ jobs:
       - name: Generate WinRT bindings
         run: npm run generate
 
-      - name: Build
-        run: npm run build
+      - name: Create release candidate tarball
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path artifacts | Out-Null
+          npm pack --pack-destination artifacts
+          $tarball = (Get-ChildItem artifacts -Filter *.tgz -File).FullName
+          "ELECTRON_WINUI_TARBALL=$tarball" >> $env:GITHUB_ENV
 
-      - name: Prepare Electron executable (CLI validation)
-        run: node dist/cli.js prepare
+      - name: Install and consume release candidate
+        run: npm run test:package
 
-      - name: Test
-        run: npm test
+      - name: Upload release candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-winui-package
+          path: artifacts/*.tgz
+          if-no-files-found: error
 
-      - name: Pack (dry run)
-        run: npm pack --dry-run
+  non-windows-fallback:
+    name: Installed package fallback (Linux)
+    needs: package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+
+      - name: Download release candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: electron-winui-package
+          path: artifacts
+
+      - name: Clean-install release candidate
+        run: |
+          mkdir consumer
+          npm install --prefix consumer ./artifacts/*.tgz electron@43.4.0 --no-audit --no-fund
+
+      - name: Verify Electron fallback
+        env:
+          ELECTRON_WINUI_PACKAGE_ROOT: ${{ github.workspace }}/consumer/node_modules/electron-winui
+        run: xvfb-run --auto-servernum ./consumer/node_modules/.bin/electron test/non-windows-fallback-app.js

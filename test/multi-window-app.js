@@ -34,6 +34,9 @@ app.whenReady().then(async () => {
 
   console.log('MULTI_WINDOW_READY');
   setTimeout(() => second.close(), 300);
+}).catch((error) => {
+  console.error(error);
+  app.exit(1);
 });
 
 app.on('window-all-closed', () => app.quit());

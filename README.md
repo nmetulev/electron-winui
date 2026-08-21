@@ -210,10 +210,11 @@ npm ci
 npm run restore   # downloads Windows App SDK metadata into .winapp/
 npm run generate  # regenerates WinRT JS bindings from package.json winapp config
 npm run build     # emits dist/
-npm test          # type check + Electron smoke tests
+npm test          # unit + Electron smoke + packed-consumer tests
 ```
 
-To produce a tarball, use the packaging script:
+`npm pack` runs the build and rejects incomplete package contents before writing
+a tarball. To produce a release tarball, use the packaging script:
 
 ```powershell
 ./scripts/package-electron-winui.ps1 -OutputPath ./artifacts
@@ -225,4 +226,3 @@ installed as a dev dependency. `.winapp/`, `dist/`, and `artifacts/` are
 generated and are not committed.
 
 See [`docs/winui-window.md`](docs/winui-window.md) for the standalone guide.
-

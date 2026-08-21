@@ -3,45 +3,68 @@ const path = require('node:path');
 
 let runtime;
 
-function bootstrapDllPath() {
-  const architecture = { arm64: 'arm64', x64: 'x64' }[process.arch];
-  if (!architecture) {
-    throw new Error(`Unsupported Electron architecture: ${process.arch}`);
+function resolveBootstrapDllPath({
+  architecture = process.arch,
+  configuredPath = process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH,
+  directory = __dirname,
+  existsSync = fs.existsSync,
+} = {}) {
+  const windowsArchitecture = { arm64: 'arm64', x64: 'x64' }[architecture];
+  if (!windowsArchitecture) {
+    throw new Error(`Unsupported Electron architecture: ${architecture}`);
   }
-
-  const configured = process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH;
-  if (configured && fs.existsSync(configured)) {
-    return configured;
+  if (configuredPath && existsSync(configuredPath)) {
+    return configuredPath;
   }
 
   const bundled = path.join(
-    __dirname,
+    directory,
     'runtime',
-    architecture,
+    windowsArchitecture,
     'Microsoft.WindowsAppRuntime.Bootstrap.dll'
   );
-  if (fs.existsSync(bundled)) {
+  if (existsSync(bundled)) {
     return bundled;
   }
 
+  const configuredDetail = configuredPath
+    ? ` Configured path does not exist: ${configuredPath}.`
+    : '';
   throw new Error(
-    `Windows App SDK bootstrap DLL was not found for ${architecture}. ` +
-      'Reinstall electron-winui or set WINAPPSDK_BOOTSTRAP_DLL_PATH.'
+    `Windows App SDK bootstrap DLL was not found for ${windowsArchitecture}.` +
+      configuredDetail +
+      ' Reinstall electron-winui or set WINAPPSDK_BOOTSTRAP_DLL_PATH to a compatible bootstrap DLL.'
   );
 }
 
-function createRuntime() {
-  const { app } = require('electron');
+function initializeWinAppSdk(initWinappsdk, bootstrapPath) {
+  process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH = bootstrapPath;
+  try {
+    initWinappsdk(2, 2);
+  } catch (error) {
+    throw new Error(
+      `Windows App SDK initialization failed using ${bootstrapPath}. ` +
+        'Install a compatible Windows App SDK runtime or point WINAPPSDK_BOOTSTRAP_DLL_PATH to its bootstrap DLL.',
+      { cause: error }
+    );
+  }
+}
+
+function createRuntime(dependencies = {}) {
+  const electron = dependencies.electron ?? require('electron');
+  const { app } = electron;
   if (!app.isReady()) {
     throw new Error('WinUIWindow can only be created after app.whenReady().');
   }
 
-  process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH = bootstrapDllPath();
-  const { initWinappsdk, roInitialize } = require('@microsoft/dynwinrt');
-  initWinappsdk(2, 2);
-  roInitialize(0);
+  const bootstrapPath =
+    dependencies.bootstrapPath ??
+    resolveBootstrapDllPath(dependencies.bootstrapOptions);
+  const dynwinrt = dependencies.dynwinrt ?? require('@microsoft/dynwinrt');
+  initializeWinAppSdk(dynwinrt.initWinappsdk, bootstrapPath);
+  dynwinrt.roInitialize(0);
 
-  const bindings = require('./bindings');
+  const bindings = dependencies.bindings ?? require('./bindings');
   const existingDispatcherQueue =
     bindings.DispatcherQueue.getForCurrentThread();
   const dispatcherController = existingDispatcherQueue
@@ -97,5 +120,8 @@ function getRuntime() {
 }
 
 module.exports = {
+  createRuntime,
   getRuntime,
+  initializeWinAppSdk,
+  resolveBootstrapDllPath,
 };
