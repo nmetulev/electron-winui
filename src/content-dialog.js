@@ -16,11 +16,11 @@ function appendChildren(bindings, panel, ...children) {
 
 async function showContentDialog(state, options, syncShellBounds) {
   state.dialogOpen = true;
-  state.view.setVisible(false);
   syncShellBounds();
 
   const dialog = new state.bindings.ContentDialog();
   dialog.xamlRoot = state.root.xamlRoot;
+  dialog.requestedTheme = state.root.requestedTheme;
   if (options.title) {
     dialog.title = createText(state.bindings, options.title, 20, 600);
   }
@@ -59,7 +59,6 @@ async function showContentDialog(state, options, syncShellBounds) {
     return { checkboxChecked: false, response };
   } finally {
     state.dialogOpen = false;
-    state.view.setVisible(true);
     syncShellBounds();
   }
 }

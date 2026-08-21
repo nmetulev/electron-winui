@@ -14,16 +14,12 @@ const api = {};
 for (const [name, descriptor] of Object.entries(
   Object.getOwnPropertyDescriptors(electron)
 )) {
-  if (!['BrowserWindow', 'Menu', 'dialog'].includes(name)) {
+  if (!['Menu', 'dialog'].includes(name)) {
     Object.defineProperty(api, name, descriptor);
   }
 }
 
 Object.defineProperties(api, {
-  BrowserWindow: {
-    enumerable: true,
-    value: overrides.WinUIWindow,
-  },
   WinUIWindow: {
     enumerable: true,
     value: overrides.WinUIWindow,

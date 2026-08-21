@@ -1,7 +1,18 @@
 import Electron = require('electron');
 
-interface WinUIWindowOptions extends Electron.BrowserWindowConstructorOptions {
+interface WinUITitleBarSearchOptions {
+  placeholder?: string;
+  text?: string;
+  width?: number;
+}
+
+interface WinUIWindowOptions extends Omit<
+  Electron.BrowserWindowConstructorOptions,
+  'frame' | 'titleBarOverlay' | 'titleBarStyle'
+> {
   winui?: {
+    icon?: string;
+    searchBox?: WinUITitleBarSearchOptions;
     shellHeight?: number;
     subtitle?: string;
   };
@@ -19,7 +30,23 @@ declare class WinUIWindow extends Electron.BaseWindow {
   loadURL(url: string, options?: Electron.LoadURLOptions): Promise<void>;
   reload(): void;
   capturePage(rect?: Electron.Rectangle): Promise<Electron.NativeImage>;
+  getSubtitle(): string;
+  getTitleBarIcon(): string | null;
+  getTitleBarSearch(): Required<WinUITitleBarSearchOptions> | null;
   setMenu(menu: Electron.Menu | null): void;
+  setSubtitle(subtitle: string): void;
+  setTitleBarIcon(icon: string | null): void;
+  setTitleBarSearch(options: WinUITitleBarSearchOptions | null): void;
+
+  on(
+    event: 'titlebar-search-changed',
+    listener: (text: string) => void
+  ): this;
+  on(
+    event: 'titlebar-search-submitted',
+    listener: (query: string) => void
+  ): this;
+  on(event: string, listener: (...args: any[]) => void): this;
 
   static fromId(id: number): WinUIWindow | null;
   static fromWebContents(webContents: Electron.WebContents): WinUIWindow | null;
@@ -29,9 +56,8 @@ declare class WinUIWindow extends Electron.BaseWindow {
 
 declare const electronWinUI: Omit<
   typeof Electron,
-  'BrowserWindow' | 'Menu' | 'dialog'
+  'Menu' | 'dialog'
 > & {
-  BrowserWindow: typeof WinUIWindow;
   WinUIWindow: typeof WinUIWindow;
   Menu: typeof Electron.Menu;
   dialog: typeof Electron.dialog;

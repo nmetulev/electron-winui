@@ -8,6 +8,7 @@ logs/
 # Build output
 dist/
 artifacts/
+build/
 *.tgz
 
 # winapp CLI restore/binding output

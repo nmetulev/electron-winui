@@ -16,8 +16,23 @@
       <p class="eyebrow">ELECTRON RENDERER - UNCHANGED</p>
       <h1>One import unlocks a native WinUI shell.</h1>
       <p class="lede">
-        This page is ordinary Chromium content. Its parent window, title area,
-        menu, flyouts, and dialogs are backed by WinUI 3.
+        Change the theme and watch Chromium and native WinUI update together.
+        Right-click anywhere in this page for a native context menu.
+      </p>
+      <section class="demo-row" aria-labelledby="theme-heading">
+        <div>
+          <h2 id="theme-heading">Application theme</h2>
+          <p>Effective theme: <output id="theme-status">system</output></p>
+        </div>
+        <div class="theme-switcher" aria-label="Application theme">
+          <button type="button" data-theme-source="system">System</button>
+          <button type="button" data-theme-source="light">Light</button>
+          <button type="button" data-theme-source="dark">Dark</button>
+        </div>
+      </section>
+      <p class="search-status">
+        Native titlebar search:
+        <output id="titlebar-search-status">Waiting for input</output>
       </p>
       <button id="show-dialog">Show a WinUI ContentDialog</button>
       <label for="proof">Interactive Chromium input</label>

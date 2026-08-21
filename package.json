@@ -1,5 +1,5 @@
 {
-  "name": "@microsoft/electron-winui",
+  "name": "electron-winui",
   "version": "0.1.0-preview.1",
   "description": "Preview WinUI 3 window shell for Electron applications",
   "main": "dist/index.js",
@@ -23,7 +23,6 @@
     "windows-app-sdk",
     "native-ui"
   ],
-  "author": "Microsoft",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -33,7 +32,7 @@
     "node": ">=22.12.0"
   },
   "peerDependencies": {
-    "electron": ">=39 <40"
+    "electron": ">=43 <44"
   },
   "dependencies": {
     "@microsoft/dynwinrt": "0.1.0-preview.19",
@@ -43,7 +42,7 @@
     "@microsoft/dynwinrt-codegen": "0.1.0-preview.19",
     "@microsoft/winappcli": "0.6.2",
     "@types/node": "^24.0.0",
-    "electron": "39.8.10",
+    "electron": "43.4.0",
     "typescript": "^5.9.3"
   },
   "files": [
@@ -93,18 +92,36 @@
             "Border",
             "ContentDialog",
             "Grid",
+            "Image",
+            "AutoSuggestBox",
             "MenuBar",
             "MenuBarItem",
+            "MenuFlyout",
             "MenuFlyoutItem",
+            "MenuFlyoutSeparator",
             "ScrollViewer",
             "StackPanel",
+            "SymbolIcon",
             "TextBlock"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Xaml.Controls.Primitives",
+          "classes": [
+            "FlyoutShowOptions"
           ]
         },
         {
           "namespace": "Microsoft.UI.Xaml.Media",
           "classes": [
             "SolidColorBrush"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Xaml.Media.Imaging",
+          "classes": [
+            "BitmapImage",
+            "SvgImageSource"
           ]
         }
       ]

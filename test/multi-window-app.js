@@ -2,16 +2,16 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const {
   app,
-  BrowserWindow,
+  WinUIWindow,
 } = require('../dist');
 
 app.whenReady().then(async () => {
-  const first = new BrowserWindow({ show: false, title: 'First WinUIWindow' });
-  const second = new BrowserWindow({ show: false, title: 'Second WinUIWindow' });
+  const first = new WinUIWindow({ show: false, title: 'First WinUIWindow' });
+  const second = new WinUIWindow({ show: false, title: 'Second WinUIWindow' });
 
-  assert.equal(BrowserWindow.getAllWindows().length, 2);
-  assert.equal(BrowserWindow.fromId(first.id), first);
-  assert.equal(BrowserWindow.fromWebContents(second.webContents), second);
+  assert.equal(WinUIWindow.getAllWindows().length, 2);
+  assert.equal(WinUIWindow.fromId(first.id), first);
+  assert.equal(WinUIWindow.fromWebContents(second.webContents), second);
 
   const firstReady = new Promise((resolve) => first.once('ready-to-show', resolve));
   const secondReady = new Promise((resolve) =>
@@ -29,7 +29,7 @@ app.whenReady().then(async () => {
   await firstClosed;
 
   assert.equal(second.isDestroyed(), false);
-  assert.deepEqual(BrowserWindow.getAllWindows(), [second]);
+  assert.deepEqual(WinUIWindow.getAllWindows(), [second]);
   second.setTitle('Second window survived');
 
   console.log('MULTI_WINDOW_READY');

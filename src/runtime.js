@@ -26,7 +26,7 @@ function bootstrapDllPath() {
 
   throw new Error(
     `Windows App SDK bootstrap DLL was not found for ${architecture}. ` +
-      'Reinstall @microsoft/electron-winui or set WINAPPSDK_BOOTSTRAP_DLL_PATH.'
+      'Reinstall electron-winui or set WINAPPSDK_BOOTSTRAP_DLL_PATH.'
   );
 }
 

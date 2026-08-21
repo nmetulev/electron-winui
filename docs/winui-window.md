@@ -2,18 +2,18 @@
 <!-- description: Replace Electron BrowserWindow chrome with a native WinUI 3 shell while keeping the existing Chromium renderer, preload, and IPC. -->
 # Use a native WinUI shell with Electron (preview)
 
-`@microsoft/electron-winui` is an experimental companion package that places
+`electron-winui` is an experimental companion package that places
 an unchanged Electron renderer inside an Electron `BaseWindow` with a native
-WinUI 3 title area, menu bar, flyouts, and dialogs.
+Windows titlebar and WinUI 3 menu bar, flyouts, and dialogs.
 
 > [!WARNING]
-> The package currently targets Electron 39 and a documented subset of
+> The package currently targets Electron 43 and a documented subset of
 > `BrowserWindow`. Evaluate the compatibility matrix before adopting it.
 
 ## Install and prepare
 
 ```powershell
-npm install electron@39 @microsoft/electron-winui
+npm install electron@43 electron-winui
 npx electron-winui prepare
 ```
 
@@ -24,9 +24,8 @@ inside Electron without this setting.
 ## Change the main-process import
 
 ```diff
-- const { app, BrowserWindow, Menu, dialog } = require('electron');
-+ const { app, BrowserWindow, Menu, dialog } =
-+   require('@microsoft/electron-winui');
++ const { app, WinUIWindow, Menu, dialog } =
++   require('electron-winui');
 ```
 
 Continue importing renderer-safe APIs from Electron in preload code:
@@ -39,14 +38,15 @@ Existing renderer HTML, IPC channels, and `webContents` calls remain in place:
 
 ```js
 app.whenReady().then(() => {
-  const window = new BrowserWindow({
+  const window = new WinUIWindow({
     width: 1100,
     height: 760,
+    winui: {
+      icon: require('node:path').join(__dirname, 'icon.svg'),
+      subtitle: 'MY WINUI APP',
+    },
     webPreferences: {
       preload: require('node:path').join(__dirname, 'preload.js'),
-    },
-    winui: {
-      subtitle: 'MY ELECTRON APP',
     },
   });
 
@@ -54,18 +54,72 @@ app.whenReady().then(() => {
 });
 ```
 
+Update the native titlebar identity without recreating the window:
+
+```js
+window.setSubtitle('PROJECT ALPHA');
+window.setTitleBarIcon('assets/project.svg');
+```
+
+Optionally place a native search box in the titlebar:
+
+```js
+window.setTitleBarSearch({
+  placeholder: 'Search this project',
+  width: 320,
+});
+
+window.on('titlebar-search-changed', (text) => updateResults(text));
+window.on('titlebar-search-submitted', (query) => runSearch(query));
+```
+
+Call `window.setTitleBarSearch(null)` to remove it.
+
 Electron application menus created through the package are projected into a
 WinUI `MenuBar`. Asynchronous `dialog.showMessageBox(window, options)` calls
 use a WinUI `ContentDialog`.
+
+Use the same theme source for the native shell and Electron, then send the
+effective result to the renderer for CSS styling:
+
+```js
+nativeTheme.themeSource = source;
+window.setTheme(source);
+window.webContents.send('theme-changed', {
+  source,
+  shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
+});
+```
+
+Package menus can also open as native WinUI context menus over Chromium:
+
+```js
+const menu = Menu.buildFromTemplate([
+  { label: 'Refresh', role: 'reload' },
+  { type: 'separator' },
+  { label: 'Close', role: 'close' },
+]);
+
+window.webContents.on('context-menu', (_event, params) => {
+  menu.popup({ window, x: params.x, y: params.y });
+});
+```
+
+The preview context-menu projection supports visible flat items and
+separators. Electron's normal popup implementation remains the fallback for
+non-`WinUIWindow` targets.
 
 ## Architecture
 
 ```text
 Electron BaseWindow
-├─ WinUI DesktopWindowXamlSource
-│  ├─ native title content
-│  ├─ MenuBar and flyouts
-│  └─ ContentDialog
+├─ native Windows/AppWindow titlebar
+├─ WinUI title DesktopWindowXamlSource
+│  └─ title content and ContentDialog host
+├─ WinUI menu DesktopWindowXamlSource
+│  └─ full-width MenuBar and flyouts
+├─ transient WinUI context DesktopWindowXamlSource
+│  └─ context menus and web-area flyout dismissal
 └─ WebContentsView
    └─ unchanged Chromium renderer
 ```
@@ -83,7 +137,7 @@ Electron packaging but before signing:
 ```js
 const {
   prepareElectronExecutable,
-} = require('@microsoft/electron-winui');
+} = require('electron-winui');
 
 await prepareElectronExecutable('out/MyApp-win32-x64/MyApp.exe');
 ```
@@ -95,7 +149,7 @@ executable invalidates its signature.
 
 Supported:
 
-- explicit `WinUIWindow`/package `BrowserWindow` creation
+- explicit `WinUIWindow` creation
 - `webContents`, `loadFile`, `loadURL`, `reload`, and `capturePage`
 - common `BaseWindow` lifecycle and geometry methods
 - package `getAllWindows`, `fromId`, `fromWebContents`, and `getFocusedWindow`
@@ -109,7 +163,7 @@ Not yet guaranteed:
 - automatic shell conversion for renderer `window.open()`
 - every menu type, role, and accelerator
 - transparent/fullscreen windows and docked DevTools
-- Electron versions other than 39
+- Electron versions other than 43
 
 For the complete preview API and runnable example, see the
 [repository README](../README.md) and [`example/`](../example/).

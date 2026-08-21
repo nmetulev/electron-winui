@@ -37,6 +37,15 @@ if (-not $OutputPath) {
     $OutputPath = Join-Path $PackageRoot "artifacts"
 }
 
+$NodeVersionText = node --version
+if ($LASTEXITCODE -ne 0) {
+    throw "Node.js was not found. Install Node.js 22.12 or newer."
+}
+$NodeVersion = [version]$NodeVersionText.TrimStart('v').Split('-')[0]
+if ($NodeVersion -lt [version]'22.12.0') {
+    throw "Electron WinUI packaging requires Node.js 22.12.0 or newer; found $NodeVersionText."
+}
+
 New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 
 Push-Location $PackageRoot
@@ -56,9 +65,15 @@ try {
     }
 
     Write-Host "[ELECTRON-WINUI] Installing npm dependencies..." -ForegroundColor Blue
-    npm install --no-audit --no-fund
+    npm ci --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to install Electron WinUI npm dependencies."
+    }
+
+    Write-Host "[ELECTRON-WINUI] Ensuring Electron is downloaded..." -ForegroundColor Blue
+    npx install-electron --no
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to download Electron."
     }
 
     if (-not (Test-Path ".winapp\bindings\index.js")) {
