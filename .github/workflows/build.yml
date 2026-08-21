@@ -1,0 +1,44 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Restore Windows App SDK metadata
+        run: npm run restore
+
+      - name: Generate WinRT bindings
+        run: npm run generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare Electron executable (CLI validation)
+        run: node dist/cli.js prepare
+
+      - name: Test
+        run: npm test
+
+      - name: Pack (dry run)
+        run: npm pack --dry-run

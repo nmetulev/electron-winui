@@ -1,0 +1,79 @@
+:root {
+  color: #1f1f1f;
+  background: #f3f3f3;
+  font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 85% 10%, rgb(0 95 184 / 14%), transparent 36%),
+    #f3f3f3;
+}
+
+main {
+  width: min(880px, calc(100% - 64px));
+  margin: 0 auto;
+  padding: 78px 0;
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: #005fb8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(38px, 7vw, 68px);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1.02;
+}
+
+.lede {
+  max-width: 700px;
+  margin: 22px 0 34px;
+  color: #5c5c5c;
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+button,
+input {
+  min-height: 40px;
+  border-radius: 5px;
+  font: inherit;
+}
+
+button {
+  border: 1px solid #005fb8;
+  padding: 8px 18px;
+  background: #005fb8;
+  color: #fff;
+  font-weight: 600;
+}
+
+label {
+  display: block;
+  margin: 34px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+input {
+  width: min(620px, 100%);
+  border: 1px solid #8a8886;
+  border-bottom: 2px solid #005fb8;
+  padding: 8px 10px;
+  background: #fff;
+  color: inherit;
+}

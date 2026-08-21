@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self'; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Electron WinUI package</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="renderer.js" defer></script>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">ELECTRON RENDERER - UNCHANGED</p>
+      <h1>One import unlocks a native WinUI shell.</h1>
+      <p class="lede">
+        This page is ordinary Chromium content. Its parent window, title area,
+        menu, flyouts, and dialogs are backed by WinUI 3.
+      </p>
+      <button id="show-dialog">Show a WinUI ContentDialog</button>
+      <label for="proof">Interactive Chromium input</label>
+      <input
+        id="proof"
+        value="Renderer, preload, IPC, and webContents still work."
+      />
+    </main>
+  </body>
+</html>
