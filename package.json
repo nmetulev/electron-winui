@@ -1,0 +1,113 @@
+{
+  "name": "@microsoft/electron-winui",
+  "version": "0.1.0-preview.1",
+  "description": "Preview WinUI 3 window shell for Electron applications",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "electron-winui": "dist/cli.js"
+  },
+  "scripts": {
+    "restore": "winapp restore",
+    "generate": "winapp node generate-bindings",
+    "build": "node scripts/build.mjs",
+    "test": "npm run test:types && node --test test/*.test.js",
+    "test:types": "tsc -p tsconfig.test.json",
+    "example": "electron example/main.js",
+    "pack:preview": "npm run build && npm pack"
+  },
+  "keywords": [
+    "electron",
+    "windows",
+    "winui",
+    "windows-app-sdk",
+    "native-ui"
+  ],
+  "author": "Microsoft",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nmetulev/electron-winui.git"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "peerDependencies": {
+    "electron": ">=39 <40"
+  },
+  "dependencies": {
+    "@microsoft/dynwinrt": "0.1.0-preview.19",
+    "rcedit": "5.0.2"
+  },
+  "devDependencies": {
+    "@microsoft/dynwinrt-codegen": "0.1.0-preview.19",
+    "@microsoft/winappcli": "0.6.2",
+    "@types/node": "^24.0.0",
+    "electron": "39.8.10",
+    "typescript": "^5.9.3"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/**/*.dll",
+    "dist/**/*.manifest",
+    "README.md"
+  ],
+  "winapp": {
+    "jsBindings": {
+      "additionalWinmds": [
+        {
+          "namespace": "Windows.Foundation",
+          "classes": [
+            "PropertyValue"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Dispatching",
+          "classes": [
+            "DispatcherQueueController"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Windowing",
+          "classes": [
+            "AppWindow"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Xaml",
+          "classes": [
+            "Application"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Xaml.Hosting",
+          "classes": [
+            "DesktopWindowXamlSource",
+            "WindowsXamlManager"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Xaml.Controls",
+          "classes": [
+            "Border",
+            "ContentDialog",
+            "Grid",
+            "MenuBar",
+            "MenuBarItem",
+            "MenuFlyoutItem",
+            "ScrollViewer",
+            "StackPanel",
+            "TextBlock"
+          ]
+        },
+        {
+          "namespace": "Microsoft.UI.Xaml.Media",
+          "classes": [
+            "SolidColorBrush"
+          ]
+        }
+      ]
+    }
+  }
+}

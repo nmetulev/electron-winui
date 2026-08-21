@@ -1,0 +1,21 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+*.log
+logs/
+
+# Build output
+dist/
+artifacts/
+*.tgz
+
+# winapp CLI restore/binding output
+.winapp/
+
+# Electron packaging output
+out/
+release/
+release-builds/
+.electron/
+.electron-gyp/
