@@ -15,7 +15,7 @@
     "test": "npm run test:types && npm run test:unit && npm run test:smoke && npm run test:package",
     "test:unit": "npm run test:version && npm run test:reliability && npm run test:menu-role && npm run test:api-conformance",
     "test:version": "node --test test/windows-app-sdk.test.js",
-    "test:reliability": "node --test test/prepare.test.js test/process.test.js test/runtime.test.js",
+    "test:reliability": "node --test test/cli.test.js test/prepare.test.js test/process.test.js test/runtime.test.js",
     "test:menu-role": "node --test test/menu-role.test.js",
     "test:api-conformance": "node --test test/api-conformance.test.js",
     "test:smoke": "node --test test/window.test.js",
@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@microsoft/dynwinrt": "0.1.0-preview.19",
-    "rcedit": "5.0.2"
+    "fast-xml-parser": "^5.10.1"
   },
   "devDependencies": {
     "@microsoft/dynwinrt-codegen": "0.1.0-preview.19",
@@ -135,5 +135,8 @@
         }
       ]
     }
+  },
+  "optionalDependencies": {
+    "@microsoft/winappcli": "0.6.2"
   }
 }

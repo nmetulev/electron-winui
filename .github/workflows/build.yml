@@ -47,7 +47,10 @@ jobs:
         run: npm run build
 
       - name: Prepare Electron executable (CLI validation)
-        run: node dist/cli.js prepare
+        run: |
+          node dist/cli.js prepare --dry-run
+          node dist/cli.js prepare
+          node dist/cli.js prepare --check
 
       - name: Test
         run: |

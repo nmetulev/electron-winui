@@ -18,6 +18,28 @@ interface WinUIWindowOptions extends Omit<
   };
 }
 
+type ElectronExecutableSignatureStatus =
+  | 'valid'
+  | 'unsigned'
+  | 'invalid'
+  | 'not-checked';
+
+interface ElectronExecutableCheck {
+  backupPath: string | null;
+  compliant: boolean;
+  executablePath: string;
+  signatureStatus: ElectronExecutableSignatureStatus;
+  supported: boolean;
+  warnings: string[];
+  wouldModify: boolean;
+}
+
+interface PrepareElectronExecutableOptions {
+  allowSigned?: boolean;
+  backupPath?: string;
+  dryRun?: boolean;
+}
+
 declare class WinUIWindow extends Electron.BaseWindow {
   constructor(options?: WinUIWindowOptions);
 
@@ -77,7 +99,22 @@ declare const electronWinUI: Omit<
   WinUIWindow: typeof WinUIWindow;
   Menu: typeof Electron.Menu;
   dialog: typeof Electron.dialog;
-  prepareElectronExecutable(executablePath?: string): Promise<string>;
+  checkElectronExecutable(
+    executablePath?: string,
+    options?: Pick<PrepareElectronExecutableOptions, 'backupPath'>
+  ): Promise<ElectronExecutableCheck>;
+  prepareElectronExecutable(
+    executablePath?: string,
+    options?: PrepareElectronExecutableOptions & { dryRun?: false }
+  ): Promise<string>;
+  prepareElectronExecutable(
+    executablePath: string | undefined,
+    options: PrepareElectronExecutableOptions & { dryRun: true }
+  ): Promise<ElectronExecutableCheck>;
+  prepareElectronExecutable(
+    executablePath: string | undefined,
+    options: PrepareElectronExecutableOptions
+  ): Promise<string | ElectronExecutableCheck>;
 };
 
 export = electronWinUI;

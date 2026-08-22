@@ -3,15 +3,33 @@ import electronWinUI = require('../dist');
 const {
   app,
   BrowserWindow,
+  checkElectronExecutable,
   dialog,
   ipcMain,
   Menu,
+  prepareElectronExecutable,
   WinUIWindow,
 } = electronWinUI;
 
 void app;
 void ipcMain;
 void Menu;
+void checkElectronExecutable('app.exe').then((report) => {
+  void report.compliant;
+  void report.signatureStatus;
+  void report.warnings;
+});
+void prepareElectronExecutable('app.exe');
+void prepareElectronExecutable('app.exe', { dryRun: true }).then((report) => {
+  void report.backupPath;
+  void report.wouldModify;
+});
+const dryRun: boolean = Date.now() > 0;
+void prepareElectronExecutable('app.exe', { dryRun }).then((result) => {
+  if (typeof result !== 'string') {
+    void result.compliant;
+  }
+});
 
 const electronWindow = new BrowserWindow({ show: false });
 const window = new WinUIWindow({

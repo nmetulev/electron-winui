@@ -78,7 +78,7 @@ test('packs, installs, and executes the actual npm tarball', async () => {
               minor: expectedContract.minor,
             },
           })});`,
-          "assert.equal(prepare.hasPerMonitorV2Manifest('ignored', { readFileSync: () => Buffer.from('PerMonitorV2') }), true);",
+          "assert.equal(typeof prepare.checkElectronExecutable, 'function');",
           "for (const arch of ['x64', 'arm64']) {",
           "  assert.equal(fs.existsSync(path.join(root, 'dist', 'runtime', arch, 'Microsoft.WindowsAppRuntime.Bootstrap.dll')), true);",
           "}",

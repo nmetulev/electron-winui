@@ -160,18 +160,49 @@ it starts:
 npx electron-winui prepare
 ```
 
-For production, apply `prepareElectronExecutable(path)` to the packaged
-executable **before code signing**:
+For production, inspect and prepare the packaged executable **before code
+signing**:
 
 ```js
 const {
+  checkElectronExecutable,
   prepareElectronExecutable,
 } = require('electron-winui');
 
-await prepareElectronExecutable('out/MyApp-win32-x64/MyApp.exe');
+const executable = 'out/MyApp-win32-x64/MyApp.exe';
+const check = await checkElectronExecutable(executable);
+if (!check.compliant) {
+  await prepareElectronExecutable(executable);
+}
 ```
 
-Patching after signing invalidates the executable signature.
+The CLI supports checks and dry runs:
+
+```powershell
+npx electron-winui prepare --dry-run .\out\MyApp-win32-x64\MyApp.exe
+npx electron-winui prepare --check .\out\MyApp-win32-x64\MyApp.exe
+```
+
+`--check` exits with code 2 when preparation is required. A real preparation
+patches a temporary copy in the executable's directory, extracts and compares
+the original and candidate manifests with WinAppCLI `mt.exe`, retains the
+original as `<executable>.electron-winui.backup`, and atomically renames the
+validated candidate into place. File mode and access/modified times are
+restored where the filesystem supports them. Editor, validation, and
+replacement failures leave or restore the original.
+
+The validation requires every existing manifest element and attribute to
+survive unchanged except `dpiAwareness`. This preserves Electron 43's
+`disableWindowFiltering`, legacy `dpiAware`, `asInvoker` trust settings,
+Common Controls v6 dependency, and supported-OS compatibility declarations.
+Because WinAppCLI currently exposes extraction/embedding but not a semantic
+merge primitive, a future Electron manifest that differs from the packaged
+template fails closed rather than being silently replaced.
+
+Signed executables are refused by default because any resource edit invalidates
+their Authenticode signature. Prepare before signing. If a controlled pipeline
+will re-sign immediately, pass `{ allowSigned: true }` in JavaScript or
+`--allow-signed` on the CLI; both paths emit explicit invalidation guidance.
 
 ## Preview compatibility
 

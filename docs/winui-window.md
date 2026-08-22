@@ -150,8 +150,24 @@ const {
 await prepareElectronExecutable('out/MyApp-win32-x64/MyApp.exe');
 ```
 
-Then sign or place the executable in an MSIX package. Patching a signed
-executable invalidates its signature.
+Use `checkElectronExecutable(path)` or `electron-winui prepare --check <path>`
+to report compliance without changing the file. `prepare --dry-run` reports the
+planned backup and signing state.
+
+Preparation uses WinAppCLI `mt.exe` against a same-directory temporary copy,
+verifies PerMonitorV2 semantically, and verifies that all other manifest
+elements and attributes match before an atomic replacement. The original is
+retained as `<executable>.electron-winui.backup`; replacement failures restore
+it. File mode and timestamps are preserved where practical.
+
+Electron's `disableWindowFiltering`, legacy `dpiAware`, `asInvoker` trust
+settings, Common Controls v6 dependency, and OS compatibility declarations are
+preserved. Unknown future Electron manifest revisions fail closed because
+WinAppCLI does not yet expose a semantic manifest merge primitive.
+
+Then sign or place the executable in an MSIX package. Signed executables are
+refused unless `allowSigned: true`/`--allow-signed` explicitly acknowledges
+that the signature will be invalidated and the next build step will re-sign.
 
 ## Current compatibility
 
