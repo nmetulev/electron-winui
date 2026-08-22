@@ -10,7 +10,10 @@ import {
   VERSION_OVERRIDE_ENV,
 } from './windows-app-sdk.mjs';
 
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const defaultPackageRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '..'
+);
 
 export function buildWinappArgs(
   command,
@@ -51,17 +54,24 @@ export function buildWinappArgs(
 
 export function runWinapp(
   command,
-  { env = process.env, passthroughArgs = [] } = {}
+  {
+    cliPath: cliPathOverride,
+    env = process.env,
+    packageRoot = defaultPackageRoot,
+    passthroughArgs = [],
+  } = {}
 ) {
   const contract = resolveWindowsAppSdkContract({ packageRoot, env });
-  const cliPath = path.join(
-    packageRoot,
-    'node_modules',
-    '@microsoft',
-    'winappcli',
-    'dist',
-    'cli.js'
-  );
+  const cliPath =
+    cliPathOverride ??
+    path.join(
+      packageRoot,
+      'node_modules',
+      '@microsoft',
+      'winappcli',
+      'dist',
+      'cli.js'
+    );
   if (!fs.existsSync(cliPath)) {
     throw new Error(
       `WinAppCLI was not found at ${cliPath}. Run \`npm install\` before \`npm run ${command}\`.`
@@ -86,7 +96,7 @@ export function runWinapp(
     }
 
     if (command === 'generate') {
-      assertRestoredWindowsAppSdk(packageRoot, contract, env);
+      assertRestoredWindowsAppSdk(packageRoot, contract);
     }
 
     const result = spawnSync(
@@ -114,7 +124,7 @@ export function runWinapp(
       return;
     }
 
-    assertRestoredWindowsAppSdk(packageRoot, contract, env);
+    assertRestoredWindowsAppSdk(packageRoot, contract);
   } finally {
     if (temporaryConfigDir) {
       fs.rmSync(temporaryConfigDir, { recursive: true, force: true });

@@ -27,14 +27,14 @@ function writeWinappYaml(packageRoot, version = '2.2.0') {
   );
 }
 
-function writeLockfile(packageRoot, version) {
+function writeLockfile(packageRoot, version, schema = 3) {
   const winappDirectory = path.join(packageRoot, '.winapp');
   const nugetCacheDir = path.join(packageRoot, 'nuget');
   fs.mkdirSync(winappDirectory, { recursive: true });
   fs.writeFileSync(
     path.join(winappDirectory, 'winmds.lock.json'),
     JSON.stringify({
-      schema: 3,
+      schema,
       nuget_cache_dir: nugetCacheDir,
       packages: [
         { name: 'Microsoft.WindowsAppSDK', version, winmds: [] },
@@ -111,15 +111,13 @@ test('fails before build when restore metadata does not match the contract', asy
   const { assertRestoredWindowsAppSdk, VERSION_OVERRIDE_ENV } =
     await toolsPromise;
   const packageRoot = temporaryDirectory();
-  const nugetRoot = writeLockfile(packageRoot, '2.1.0');
+  writeLockfile(packageRoot, '2.1.0');
 
   assert.throws(
     () =>
       assertRestoredWindowsAppSdk(packageRoot, {
         packageVersion: '2.2.0',
         overridden: true,
-      }, {
-        NUGET_PACKAGES: nugetRoot,
       }),
     new RegExp(
       `build requires 2\\.2\\.0.*contains 2\\.1\\.0.*${VERSION_OVERRIDE_ENV}`
@@ -134,8 +132,7 @@ test('only locates bootstrap DLLs restored for the effective version', async () 
   const contract = { packageVersion: '2.2.0', overridden: false };
   const restoreMetadata = assertRestoredWindowsAppSdk(
     packageRoot,
-    contract,
-    { NUGET_PACKAGES: nugetRoot }
+    contract
   );
   const wrongVersionDll = path.join(
     nugetRoot,
@@ -159,32 +156,43 @@ test('only locates bootstrap DLLs restored for the effective version', async () 
 test('rejects a traversal version in restore metadata', async () => {
   const { assertRestoredWindowsAppSdk } = await toolsPromise;
   const packageRoot = temporaryDirectory();
-  const nugetRoot = writeLockfile(packageRoot, '..\\..\\Windows\\System32');
+  writeLockfile(packageRoot, '..\\..\\Windows\\System32');
 
   assert.throws(
     () =>
       assertRestoredWindowsAppSdk(
         packageRoot,
-        { packageVersion: '..\\..\\Windows\\System32', overridden: false },
-        { NUGET_PACKAGES: nugetRoot }
+        { packageVersion: '..\\..\\Windows\\System32', overridden: false }
       ),
     /must be a NuGet version/
   );
 });
 
-test('rejects restore metadata for a different NuGet cache', async () => {
+test('accepts a custom absolute NuGet cache recorded by schema 3', async () => {
   const { assertRestoredWindowsAppSdk } = await toolsPromise;
   const packageRoot = temporaryDirectory();
-  writeLockfile(packageRoot, '2.2.0');
+  const customNugetRoot = writeLockfile(packageRoot, '2.2.0');
+
+  const metadata = assertRestoredWindowsAppSdk(
+    packageRoot,
+    { packageVersion: '2.2.0', overridden: false }
+  );
+
+  assert.equal(metadata.nugetCacheDir, customNugetRoot);
+});
+
+test('rejects unsupported restore metadata schemas', async () => {
+  const { assertRestoredWindowsAppSdk } = await toolsPromise;
+  const packageRoot = temporaryDirectory();
+  writeLockfile(packageRoot, '2.2.0', 4);
 
   assert.throws(
     () =>
-      assertRestoredWindowsAppSdk(
-        packageRoot,
-        { packageVersion: '2.2.0', overridden: false },
-        { NUGET_PACKAGES: path.join(packageRoot, 'other-nuget') }
-      ),
-    /cannot safely locate.*active NuGet cache/
+      assertRestoredWindowsAppSdk(packageRoot, {
+        packageVersion: '2.2.0',
+        overridden: false,
+      }),
+    /schema 4 is unsupported; expected schema 3/
   );
 });
 
@@ -210,6 +218,76 @@ test('build tooling forwards supported WinAppCLI arguments and owns config-dir',
         '--config-dir=C:\\other',
       ]),
     /--config-dir is managed by electron-winui/
+  );
+});
+
+test('override restore uses temporary config while writing workspace outputs', async () => {
+  const { VERSION_OVERRIDE_ENV } = await toolsPromise;
+  const { runWinapp } = await import('../scripts/winapp.mjs');
+  const packageRoot = temporaryDirectory();
+  const fakeCli = path.join(packageRoot, 'fake-winapp-cli.cjs');
+  writeWinappYaml(packageRoot);
+  fs.writeFileSync(
+    fakeCli,
+    `
+const fs = require('node:fs');
+const path = require('node:path');
+const [command, workspace, configFlag, configDir] = process.argv.slice(2);
+if (command !== 'restore' || configFlag !== '--config-dir') process.exit(2);
+const yaml = fs.readFileSync(path.join(configDir, 'winapp.yaml'), 'utf8');
+const version = yaml.match(/Microsoft\\.WindowsAppSDK\\s*\\n\\s*version:\\s*([^\\s]+)/)[1];
+const winappDir = path.join(workspace, '.winapp');
+const bindingsDir = path.join(winappDir, 'bindings');
+const nugetCacheDir = path.join(workspace, 'custom-global-packages');
+fs.mkdirSync(bindingsDir, { recursive: true });
+fs.writeFileSync(path.join(bindingsDir, 'index.js'), 'module.exports = {};\\n');
+fs.writeFileSync(path.join(winappDir, 'winmds.lock.json'), JSON.stringify({
+  schema: 3,
+  nuget_cache_dir: nugetCacheDir,
+  packages: [
+    { name: 'Microsoft.WindowsAppSDK', version, winmds: [] },
+    { name: 'Microsoft.WindowsAppSDK.Foundation', version, winmds: [] }
+  ]
+}));
+fs.writeFileSync(path.join(winappDir, 'observed-config.json'), JSON.stringify({
+  configDir,
+  yaml
+}));
+`
+  );
+
+  runWinapp('restore', {
+    cliPath: fakeCli,
+    env: {
+      ...process.env,
+      [VERSION_OVERRIDE_ENV]: '2.1.0',
+    },
+    packageRoot,
+  });
+
+  const observed = JSON.parse(
+    fs.readFileSync(
+      path.join(packageRoot, '.winapp', 'observed-config.json'),
+      'utf8'
+    )
+  );
+  const lockfile = JSON.parse(
+    fs.readFileSync(
+      path.join(packageRoot, '.winapp', 'winmds.lock.json'),
+      'utf8'
+    )
+  );
+  assert.notEqual(observed.configDir, packageRoot);
+  assert.equal(fs.existsSync(observed.configDir), false);
+  assert.match(observed.yaml, /version: 2\.1\.0/);
+  assert.match(
+    fs.readFileSync(path.join(packageRoot, 'winapp.yaml'), 'utf8'),
+    /version: 2\.2\.0/
+  );
+  assert.equal(lockfile.packages[0].version, '2.1.0');
+  assert.equal(
+    fs.existsSync(path.join(packageRoot, '.winapp', 'bindings', 'index.js')),
+    true
   );
 });
 

@@ -237,15 +237,18 @@ For an explicit developer override, set
 ```powershell
 $env:ELECTRON_WINUI_WINAPPSDK_VERSION = '2.1.0'
 npm run restore
+npm run generate
 npm run build
 ```
 
-The override is build-time only and never changes `winapp.yaml`. Production
-runtime does not honor `WINAPPSDK_BOOTSTRAP_DLL_PATH`; it always loads the
-package-owned bootstrap DLL selected and validated during the build. Runtime
-initialization is idempotent when the process package graph already selected
-the same major/minor release. If the Electron host or another dependency
-selected a different release first, electron-winui fails with the required
-release instead of attempting to replace the process-wide package graph.
+This override rebuilds the electron-winui package itself; downstream app-level
+runtime selection belongs to deployment integration. The override never changes
+`winapp.yaml`. Production runtime does not honor
+`WINAPPSDK_BOOTSTRAP_DLL_PATH`; it always loads the package-owned bootstrap DLL
+selected and validated during the build. Runtime initialization is idempotent
+when the process package graph already selected the same major/minor release.
+If the Electron host or another dependency selected a different release first,
+electron-winui fails with the required release instead of attempting to replace
+the process-wide package graph.
 
 See [`docs/winui-window.md`](docs/winui-window.md) for the standalone guide.

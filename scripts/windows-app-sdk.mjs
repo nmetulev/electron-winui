@@ -172,8 +172,7 @@ function restoreInstruction(contract) {
 
 export function assertRestoredWindowsAppSdk(
   packageRoot,
-  contract,
-  env = process.env
+  contract
 ) {
   const { packageVersion } = contract;
   const lockPath = path.join(packageRoot, '.winapp', 'winmds.lock.json');
@@ -190,6 +189,14 @@ export function assertRestoredWindowsAppSdk(
     throw new Error(
       `Windows App SDK restore metadata at ${lockPath} is invalid. Delete .winapp and run \`npm run restore\` again.`,
       { cause: error }
+    );
+  }
+
+  const schema = Number(lockfile.schema ?? lockfile.schemaVersion);
+  if (schema !== 3) {
+    throw new Error(
+      `Windows App SDK restore metadata schema ${Number.isNaN(schema) ? 'is missing' : schema} is unsupported; expected schema 3. ` +
+        `Delete .winapp and ${restoreInstruction(contract)}`
     );
   }
 
@@ -224,30 +231,23 @@ export function assertRestoredWindowsAppSdk(
     );
   }
   const nugetCacheDir = lockfile.nuget_cache_dir ?? lockfile.nugetCacheDir;
-  const expectedNugetCacheDir =
-    env.NUGET_PACKAGES ||
-    (env.USERPROFILE
-      ? path.join(env.USERPROFILE, '.nuget', 'packages')
-      : undefined);
   if (
     !foundation?.version ||
     typeof nugetCacheDir !== 'string' ||
-    !expectedNugetCacheDir ||
     !path.isAbsolute(nugetCacheDir) ||
     path.parse(nugetCacheDir).root === path.resolve(nugetCacheDir) ||
     nugetCacheDir.startsWith('\\\\') ||
-    path.resolve(nugetCacheDir).toLowerCase() !==
-      path.resolve(expectedNugetCacheDir).toLowerCase()
+    nugetCacheDir.startsWith('//')
   ) {
     throw new Error(
-      `Restore metadata cannot safely locate the resolved Windows App SDK Foundation package in the active NuGet cache. ` +
+      `Restore metadata cannot safely locate the resolved Windows App SDK Foundation package in its recorded NuGet cache. ` +
         `Delete .winapp and ${restoreInstruction(contract)}`
     );
   }
 
   return {
     foundationVersion: foundation.version,
-    nugetCacheDir,
+    nugetCacheDir: path.resolve(nugetCacheDir),
   };
 }
 
