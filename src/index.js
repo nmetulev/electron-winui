@@ -1,7 +1,10 @@
 const electron = require('electron');
 const { dialog } = require('./dialog');
 const { Menu } = require('./menu');
-const { prepareElectronExecutable } = require('./prepare');
+const {
+  checkElectronExecutable,
+  prepareElectronExecutable,
+} = require('./prepare');
 
 const overrides =
   process.platform === 'win32'
@@ -35,6 +38,10 @@ Object.defineProperties(api, {
   prepareElectronExecutable: {
     enumerable: true,
     value: prepareElectronExecutable,
+  },
+  checkElectronExecutable: {
+    enumerable: true,
+    value: checkElectronExecutable,
   },
 });
 
