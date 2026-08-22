@@ -79,12 +79,11 @@ Electron application menus created through the package are projected into a
 WinUI `MenuBar`. Asynchronous `dialog.showMessageBox(window, options)` calls
 use a WinUI `ContentDialog`.
 
-Use the same theme source for the native shell and Electron, then send the
-effective result to the renderer for CSS styling:
+Set Electron's theme source and send the effective result to the renderer for
+CSS styling. The native shell observes `nativeTheme` and updates automatically:
 
 ```js
 nativeTheme.themeSource = source;
-window.setTheme(source);
 window.webContents.send('theme-changed', {
   source,
   shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
@@ -124,10 +123,19 @@ Electron BaseWindow
    └─ unchanged Chromium renderer
 ```
 
-The package returns a genuine Electron `BaseWindow` augmented with common
-`BrowserWindow` members. This keeps native APIs that accept `BaseWindow`
-working while preserving `webContents`, `loadFile`, `loadURL`, window bounds,
-show/hide, minimize/maximize, and parent-window behavior.
+The package returns a genuine Electron `BaseWindow` augmented with a deliberate
+`BrowserWindow`-like subset:
+
+- property: `webContents`
+- methods: `loadFile`, `loadURL`, `reload`, `capturePage`, `setMenu`,
+  `removeMenu`, `setMenuBarVisibility`, and `isMenuBarVisible`
+- static lookups: `getAllWindows`, `fromId`, `fromWebContents`, and
+  `getFocusedWindow`
+- forwarded events: `enter-html-full-screen`, `leave-html-full-screen`,
+  `responsive`, `unresponsive`, `page-title-updated`, and `ready-to-show`
+
+Common `BaseWindow` lifecycle and geometry APIs remain inherited, including
+window bounds, show/hide, minimize/maximize, and parent-window behavior.
 
 ## Package production builds
 
@@ -152,8 +160,12 @@ Supported:
 - explicit `WinUIWindow` creation
 - `webContents`, `loadFile`, `loadURL`, `reload`, and `capturePage`
 - common `BaseWindow` lifecycle and geometry methods
+- `setMenu`, `removeMenu`, `setMenuBarVisibility`, and `isMenuBarVisible`
 - package `getAllWindows`, `fromId`, `fromWebContents`, and `getFocusedWindow`
+- `enter-html-full-screen`, `leave-html-full-screen`, `responsive`,
+  `unresponsive`, `page-title-updated`, and `ready-to-show` events
 - simple application menus and asynchronous message boxes
+- `close`, `reload`, and `toggleDevTools` menu roles
 - renderer, preload, context isolation, sandbox, and IPC
 
 Not yet guaranteed:
@@ -161,7 +173,8 @@ Not yet guaranteed:
 - `instanceof electron.BrowserWindow`
 - third-party modules that import Electron's original `BrowserWindow` directly
 - automatic shell conversion for renderer `window.open()`
-- every menu type, role, and accelerator
+- nested/check/radio menu parity, accelerators, and roles beyond `close`,
+  `reload`, and `toggleDevTools`
 - transparent/fullscreen windows and docked DevTools
 - Electron versions other than 43
 
