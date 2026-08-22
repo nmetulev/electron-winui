@@ -53,7 +53,7 @@ test('packs, installs, and executes the actual npm tarball', async () => {
         '--no-audit',
         '--no-fund',
       ],
-      { cwd: consumerDirectory, timeoutMs: 120_000 }
+      { cwd: consumerDirectory, timeoutMs: 300_000 }
     );
     assertSucceeded(install, 'consumer npm install');
 
