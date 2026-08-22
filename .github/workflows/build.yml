@@ -125,4 +125,4 @@ jobs:
       - name: Verify Electron fallback
         env:
           ELECTRON_WINUI_PACKAGE_ROOT: ${{ github.workspace }}/consumer/node_modules/electron-winui
-        run: xvfb-run --auto-servernum ./consumer/node_modules/.bin/electron test/non-windows-fallback-app.js
+        run: xvfb-run --auto-servernum ./consumer/node_modules/.bin/electron --no-sandbox test/non-windows-fallback-app.js

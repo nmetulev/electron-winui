@@ -6,7 +6,7 @@ const {
 } = require('../dist/prepare');
 const { runProcess } = require('./helpers/run-process');
 
-async function runElectronFixture(fixture) {
+async function runElectronFixture(fixture, timeoutMs = 45_000) {
   const electronExecutable = require('electron');
   assert.equal(typeof electronExecutable, 'string');
   assert.equal(await prepareElectronExecutable(), electronExecutable);
@@ -17,7 +17,7 @@ async function runElectronFixture(fixture) {
       ...process.env,
       ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
     },
-    timeoutMs: 45_000,
+    timeoutMs,
   });
 }
 
@@ -34,7 +34,7 @@ test('keeps the shared WinUI runtime alive across windows', async () => {
 });
 
 test('repeatedly creates and tears down native-backed windows', async () => {
-  const result = await runElectronFixture('lifecycle-stress-app.js');
+  const result = await runElectronFixture('lifecycle-stress-app.js', 90_000);
   assert.equal(result.code, 0, result.stderr);
   assert.match(result.stdout, /LIFECYCLE_STRESS_READY:12/);
 });

@@ -48,7 +48,8 @@ test('packs, installs, and executes the actual npm tarball', async () => {
         npmCli,
         'install',
         tarball,
-        '--omit=peer',
+        'electron@43.4.0',
+        '--ignore-scripts',
         '--no-audit',
         '--no-fund',
       ],
@@ -85,6 +86,58 @@ test('packs, installs, and executes the actual npm tarball', async () => {
     );
     assertSucceeded(cli, 'installed CLI execution');
     assert.match(cli.stdout, /Usage: electron-winui prepare/);
+
+    const installedFixture = path.join(
+      consumerDirectory,
+      'packed-consumer-app.js'
+    );
+    fs.copyFileSync(
+      path.join(__dirname, 'packed-consumer-app.js'),
+      installedFixture
+    );
+    const resolveElectron = await runProcess(
+      process.execPath,
+      ['-e', "console.log(require('electron'))"],
+      {
+        cwd: consumerDirectory,
+        timeoutMs: 300_000,
+      }
+    );
+    assertSucceeded(resolveElectron, 'installed Electron resolution');
+    const electronExecutable = resolveElectron.stdout
+      .trim()
+      .split(/\r?\n/)
+      .at(-1);
+    assert.ok(
+      electronExecutable,
+      'installed Electron did not resolve an executable'
+    );
+    const installedPrepare = require(path.join(
+      consumerDirectory,
+      'node_modules',
+      'electron-winui',
+      'dist',
+      'prepare.js'
+    ));
+    assert.equal(
+      await installedPrepare.prepareElectronExecutable(electronExecutable),
+      electronExecutable
+    );
+
+    const electron = await runProcess(
+      electronExecutable,
+      [installedFixture],
+      {
+        cwd: consumerDirectory,
+        env: {
+          ...process.env,
+          ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+        },
+        timeoutMs: 45_000,
+      }
+    );
+    assertSucceeded(electron, 'installed Electron package execution');
+    assert.match(electron.stdout, /PACKED_ELECTRON_READY/);
   } finally {
     fs.rmSync(temporaryDirectory, { force: true, recursive: true });
   }

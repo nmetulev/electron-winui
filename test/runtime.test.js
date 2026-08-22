@@ -84,6 +84,7 @@ test('creates and idempotently disposes an injected runtime', () => {
   let queueShutdownCount = 0;
   let roInitializeMode;
   let initializedRelease;
+  const disposalOrder = [];
   const application = {};
   const runtime = createRuntime({
     bindings: {
@@ -98,6 +99,7 @@ test('creates and idempotently disposes an injected runtime', () => {
         createOnCurrentThread: () => ({
           shutdownQueue: () => {
             queueShutdownCount += 1;
+            disposalOrder.push('queue');
           },
         }),
       },
@@ -106,6 +108,7 @@ test('creates and idempotently disposes an injected runtime', () => {
         initializeForCurrentThread: () => ({
           close: () => {
             xamlCloseCount += 1;
+            disposalOrder.push('xaml');
           },
         }),
       },
@@ -137,4 +140,5 @@ test('creates and idempotently disposes an injected runtime', () => {
   runtime.dispose();
   assert.equal(xamlCloseCount, 1);
   assert.equal(queueShutdownCount, 1);
+  assert.deepEqual(disposalOrder, ['xaml', 'queue']);
 });
