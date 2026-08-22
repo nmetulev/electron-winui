@@ -56,13 +56,13 @@ general test suite through `npm run test:uia`.
      - **Section C** - opening the native context-menu flyout surfaces its
        items with non-empty `AutomationId`/`Name`; invoking `Context Ping`
        closes the flyout **and** is observed as a real Electron-side event
-       (`CONTEXT_PING_CLICKED` on the fixture's stdout).
+       (`CONTEXT_MENU_PING_CLICKED` on the fixture's stdout).
      - **Section D** - opening the native `ContentDialog` surfaces its host
        with a non-empty `AutomationId`/`Name`; each of its three buttons is
        individually audited for the WinUI template AutomationIds
        `PrimaryButton`, `SecondaryButton`, and `CloseButton`; invoking one
        closes the dialog **and** is observed as a real Electron-side event
-       (`DIALOG_RESULT:<expected index>`).
+       (`CONTENT_DIALOG_RESULT:<payload>`).
      - **Section E** - the title-bar search box exposes
        `AutomationId`/`Name`; typing into it with real synthetic keystrokes
        (`winapp ui send-keys --via send-input`, **not** `set-value`, per
@@ -131,7 +131,7 @@ own `runProcess()` Win32 Job Object machinery on top (same as
 `test/window.test.js`), so even a hard hang inside the PowerShell script
 itself is bounded by `runProcess`'s existing timeout/kill behavior.
 
-## ContentDialog platform boundary
+## ContentDialog template-owned action IDs
 
 `ContentDialog` exposes action text and styles, but not the action button
 instances. The WinUI template owns those controls and names them
