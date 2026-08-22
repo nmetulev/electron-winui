@@ -9,9 +9,11 @@ created by the repository's release-candidate workflow.
 ### Added
 
 - Fail-closed npm tarball size, unpacked-size, file-count, and required-artifact
-  policy grounded in the validated `0.1.0-preview.1` package candidate.
+  policy, including minimum drift floors, grounded in the validated
+  `0.1.0-preview.1` package candidate.
 - Manual, no-publish release-candidate workflow with compatibility, UI
-  Automation, package-consumer, checksum, CycloneDX SBOM, and provenance gates.
+  Automation, package-consumer, production dependency audit, checksum,
+  CycloneDX SBOM, and provenance gates.
 - Trusted-preview security, support, servicing, dependency-update, and repository
   governance policies.
 

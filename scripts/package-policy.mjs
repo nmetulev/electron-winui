@@ -6,8 +6,11 @@ export const validatedPackageBaseline = Object.freeze({
 });
 
 export const packageBudgets = Object.freeze({
+  minimumPackedSizeBytes: 1_900_000,
   packedSizeBytes: 2_100_000,
+  minimumUnpackedSizeBytes: 16_500_000,
   unpackedSizeBytes: 17_000_000,
+  minimumFileCount: 1_400,
   fileCount: 1_450,
 });
 
@@ -91,6 +94,14 @@ function overBudget(name, actual, maximum, formatter = String) {
   );
 }
 
+function underBudget(name, actual, minimum, formatter = String) {
+  const underage = minimum - actual;
+  return (
+    `${name} is ${formatter(actual)}; minimum is ${formatter(minimum)} ` +
+    `(under by ${formatter(underage)}).`
+  );
+}
+
 export function verifyPackagePolicy(
   pack,
   {
@@ -107,12 +118,32 @@ export function verifyPackagePolicy(
     }
   }
 
+  if (pack.size < budgets.minimumPackedSizeBytes) {
+    errors.push(
+      underBudget(
+        'packed size',
+        pack.size,
+        budgets.minimumPackedSizeBytes,
+        formatBytes
+      )
+    );
+  }
   if (pack.size > budgets.packedSizeBytes) {
     errors.push(
       overBudget(
         'packed size',
         pack.size,
         budgets.packedSizeBytes,
+        formatBytes
+      )
+    );
+  }
+  if (pack.unpackedSize < budgets.minimumUnpackedSizeBytes) {
+    errors.push(
+      underBudget(
+        'unpacked size',
+        pack.unpackedSize,
+        budgets.minimumUnpackedSizeBytes,
         formatBytes
       )
     );
@@ -127,6 +158,15 @@ export function verifyPackagePolicy(
       )
     );
   }
+  if (pack.files.length < budgets.minimumFileCount) {
+    errors.push(
+      underBudget(
+        'file count',
+        pack.files.length,
+        budgets.minimumFileCount
+      )
+    );
+  }
   if (pack.files.length > budgets.fileCount) {
     errors.push(
       overBudget('file count', pack.files.length, budgets.fileCount)
@@ -137,7 +177,7 @@ export function verifyPackagePolicy(
     throw new Error(
       `Package policy rejected ${pack.filename ?? pack.name ?? 'the npm tarball'}:\n` +
         errors.map((error) => `- ${error}`).join('\n') +
-        '\nRemove unintended files or update the reviewed baseline and budgets in scripts/package-policy.mjs.'
+        '\nRestore missing files, remove unintended files, or update the reviewed baseline and budgets in scripts/package-policy.mjs.'
     );
   }
 

@@ -45,6 +45,18 @@ Applications own OS, Electron, Windows App SDK, and transitive dependency
 servicing. Preview fixes are delivered only in a new package version; existing
 tarballs are immutable.
 
+## Release-candidate integrity
+
+The manual release-candidate workflow rejects tarballs above or below reviewed
+packed-size, unpacked-size, and file-count limits. A legitimate binding removal
+or optimization must update the recorded baseline and both limits explicitly.
+
+Before generating the SBOM or attestations, the workflow audits production and
+published optional dependencies from `package-lock.json` and fails on known
+high or critical advisories. A successful `npm-audit.json` report is included
+in the immutable review artifact. Registry unavailability fails the release
+candidate; ordinary source tests intentionally do not call the audit registry.
+
 ## Versioning and deprecation
 
 The package follows SemVer with prerelease versions. Before 1.0, a minor release

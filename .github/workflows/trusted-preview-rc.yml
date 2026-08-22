@@ -75,6 +75,32 @@ jobs:
           echo "tarball-name=$tarball_name" >> "$GITHUB_OUTPUT"
           echo "tarball-path=$GITHUB_WORKSPACE/$tarball_path" >> "$GITHUB_OUTPUT"
 
+      - name: Audit production dependency lockfile
+        shell: bash
+        run: |
+          set +e
+          npm audit \
+            --package-lock-only \
+            --omit=dev \
+            --include=optional \
+            --audit-level=high \
+            --json > review/npm-audit.json
+          audit_status=$?
+          set -e
+          node -e "
+            const fs = require('node:fs');
+            const report = JSON.parse(fs.readFileSync('review/npm-audit.json', 'utf8'));
+            const vulnerabilities = report.metadata?.vulnerabilities;
+            if (!vulnerabilities) {
+              throw new Error('npm audit did not report vulnerability metadata');
+            }
+            console.log('Production dependency audit:', vulnerabilities);
+          "
+          if [[ $audit_status -ne 0 ]]; then
+            echo 'Production dependency audit found a high/critical advisory or could not complete.' >&2
+            exit "$audit_status"
+          fi
+
       - name: Generate CycloneDX npm SBOM
         shell: bash
         env:
