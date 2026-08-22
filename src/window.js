@@ -2,6 +2,10 @@ const electron = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { showContentDialog } = require('./content-dialog');
+const {
+  menuItemAutomationId,
+  setAutomationProperties,
+} = require('./accessibility');
 const { getRuntime } = require('./runtime');
 const { activateMenuItem } = require('./menu-role');
 const {
@@ -88,6 +92,10 @@ function updateTitleBarSearch(window, options) {
   const width = options.width ?? 280;
   state.titleBarSearch = { placeholder, width };
   state.titleSearch.placeholderText = placeholder;
+  setAutomationProperties(state.bindings, state.titleSearch, {
+    id: 'ElectronWinUI.TitleBar.Search',
+    name: placeholder || 'Search',
+  });
   state.titleSearch.width = width;
   if (Object.hasOwn(options, 'text')) {
     state.titleSearch.text = options.text ?? '';
@@ -96,14 +104,26 @@ function updateTitleBarSearch(window, options) {
   syncShellBounds(window);
 }
 
-function addMenuItem(bindings, target, item, window, subscriptions) {
+function addMenuItem(
+  bindings,
+  target,
+  item,
+  window,
+  subscriptions,
+  automationId
+) {
   if (!item.visible || item.type === 'separator') {
     return;
   }
 
   const menuItem = new bindings.MenuFlyoutItem();
-  menuItem.text = item.label || item.role || '';
+  const label = item.label || item.role || '';
+  menuItem.text = label;
   menuItem.isEnabled = item.enabled;
+  setAutomationProperties(bindings, menuItem, {
+    id: automationId,
+    name: label || 'Menu item',
+  });
   if (item.accelerator) {
     menuItem.keyboardAcceleratorTextOverride = item.accelerator;
   }
@@ -156,7 +176,8 @@ function showContextMenu(window, menu, options) {
   state.activeContextMenu?.hide();
   const flyout = new state.bindings.MenuFlyout();
   const subscriptions = [];
-  for (const item of menu.items) {
+  const automationIds = new Set();
+  for (const [itemIndex, item] of menu.items.entries()) {
     if (!item.visible) {
       continue;
     }
@@ -169,7 +190,8 @@ function showContextMenu(window, menu, options) {
       flyout,
       item,
       window,
-      subscriptions
+      subscriptions,
+      menuItemAutomationId('ContextMenu', item, [itemIndex], automationIds)
     );
   }
 
@@ -239,23 +261,40 @@ function rebuildMenu(window) {
   state.menuBar.visibility = state.menuVisible
     ? state.bindings.Visibility.Visible
     : state.bindings.Visibility.Collapsed;
-  for (const item of menu.items) {
+  const automationIds = new Set();
+  for (const [topLevelIndex, item] of menu.items.entries()) {
     if (!item.visible || !item.submenu) {
       continue;
     }
 
     const topLevel = new state.bindings.MenuBarItem();
-    topLevel.title = item.label || item.role || '';
+    const label = item.label || item.role || '';
+    topLevel.title = label;
+    setAutomationProperties(state.bindings, topLevel, {
+      id: menuItemAutomationId(
+        'MenuBar',
+        item,
+        [topLevelIndex],
+        automationIds
+      ),
+      name: label || 'Menu',
+    });
     state.menuSubscriptions.push(
       topLevel.onTapped(() => showMenuOverlay(window))
     );
-    for (const child of item.submenu.items) {
+    for (const [childIndex, child] of item.submenu.items.entries()) {
       addMenuItem(
         state.bindings,
         topLevel,
         child,
         window,
-        state.menuSubscriptions
+        state.menuSubscriptions,
+        menuItemAutomationId(
+          'MenuBar',
+          child,
+          [topLevelIndex, childIndex],
+          automationIds
+        )
       );
     }
     state.menuBar.items.append(topLevel);
@@ -485,6 +524,10 @@ function createShell(window, options, view) {
   titleSearch.verticalAlignment = bindings.VerticalAlignment.Center;
   titleSearch.queryIcon = new bindings.SymbolIcon(bindings.Symbol.Find);
   titleSearch.visibility = bindings.Visibility.Collapsed;
+  setAutomationProperties(bindings, titleSearch, {
+    id: 'ElectronWinUI.TitleBar.Search',
+    name: 'Search',
+  });
   appendChildren(
     bindings,
     titleRow,
@@ -497,6 +540,10 @@ function createShell(window, options, view) {
   const menuBar = new bindings.MenuBar();
   menuBar.height = shellHeightValue - titleBarHeight;
   menuBar.horizontalAlignment = bindings.HorizontalAlignment.Stretch;
+  setAutomationProperties(bindings, menuBar, {
+    id: 'ElectronWinUI.MenuBar',
+    name: 'Application menu',
+  });
 
   shellSurface.child = titleRow;
   menuSurface.child = menuBar;
