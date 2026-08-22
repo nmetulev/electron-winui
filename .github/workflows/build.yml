@@ -16,10 +16,13 @@ jobs:
         include:
           - node: 22.12.0
             electron: 43.0.0
+            uia: false
           - node: 22.12.0
             electron: 43.4.0
+            uia: false
           - node: 24
             electron: 43.4.0
+            uia: true
 
     steps:
       - name: Checkout
@@ -57,6 +60,18 @@ jobs:
           npm run test:types
           npm run test:unit
           npm run test:smoke
+
+      - name: Test native UI Automation
+        if: matrix.uia
+        run: npm run test:uia
+
+      - name: Upload native UI Automation artifacts
+        if: always() && matrix.uia
+        uses: actions/upload-artifact@v7
+        with:
+          name: native-ui-automation-node-${{ matrix.node }}
+          path: test/uia/artifacts/
+          if-no-files-found: error
 
   package:
     name: Pack, install, and consume (x64 + arm64 artifacts)
