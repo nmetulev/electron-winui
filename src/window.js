@@ -3,11 +3,13 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { showContentDialog } = require('./content-dialog');
 const { getRuntime } = require('./runtime');
+const { activateMenuItem } = require('./menu-role');
 const {
   getApplicationMenu,
   onApplicationMenuChanged,
   registerMenuPopup,
 } = require('./menu');
+const { FORWARDED_WEB_CONTENTS_EVENTS } = require('./window-api');
 
 const stateByWindow = new WeakMap();
 const windows = new Set();
@@ -109,11 +111,7 @@ function addMenuItem(bindings, target, item, window, subscriptions) {
   subscriptions.push(
     menuItem.onClick(() => {
       hideMenuOverlay(window);
-      if (item.role && typeof item.click === 'function') {
-        item.click(item, window, window.webContents);
-      } else if (typeof item.click === 'function') {
-        item.click(item, window, {});
-      }
+      activateMenuItem(item, window);
     })
   );
   target.items.append(menuItem);
@@ -225,6 +223,7 @@ function rebuildMenu(window) {
       ? state.windowMenu
       : getApplicationMenu();
   if (configuredMenu === null) {
+    state.menuAvailable = false;
     state.menuVisible = false;
     state.menuBar.visibility = state.bindings.Visibility.Collapsed;
     layoutView(window);
@@ -233,8 +232,13 @@ function rebuildMenu(window) {
   }
 
   const menu = configuredMenu ?? defaultMenu();
-  state.menuVisible = true;
-  state.menuBar.visibility = state.bindings.Visibility.Visible;
+  if (!state.menuAvailable) {
+    state.menuVisible = true;
+  }
+  state.menuAvailable = true;
+  state.menuBar.visibility = state.menuVisible
+    ? state.bindings.Visibility.Visible
+    : state.bindings.Visibility.Collapsed;
   for (const item of menu.items) {
     if (!item.visible || !item.submenu) {
       continue;
@@ -256,6 +260,8 @@ function rebuildMenu(window) {
     }
     state.menuBar.items.append(topLevel);
   }
+  layoutView(window);
+  syncShellBounds(window);
 }
 
 function shellHeight(state) {
@@ -508,6 +514,7 @@ function createShell(window, options, view) {
     contextSource,
     dialogOpen: false,
     menuBar,
+    menuAvailable: true,
     menuRoot,
     menuSource,
     menuSurface,
@@ -577,13 +584,7 @@ function createShell(window, options, view) {
 }
 
 function forwardWebContentsEvents(window, state) {
-  const events = [
-    'enter-html-full-screen',
-    'leave-html-full-screen',
-    'responsive',
-    'unresponsive',
-  ];
-  for (const eventName of events) {
+  for (const eventName of FORWARDED_WEB_CONTENTS_EVENTS) {
     const handler = (...args) => window.emit(eventName, ...args);
     state.view.webContents.on(eventName, handler);
     state.subscriptions.push(() =>

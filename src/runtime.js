@@ -1,52 +1,71 @@
 const {
   bootstrapDllPath,
-  initializeWindowsAppSdk,
+  initializeWindowsRuntime,
   loadRuntimeContract,
+  winUiInitializationError,
 } = require('./windows-app-sdk');
 
 let runtime;
 
 function createRuntime(dependencies = {}) {
-  const electron = dependencies.electron ?? require('electron');
-  const { app } = electron;
+  const app =
+    dependencies.app ??
+    dependencies.electron?.app ??
+    require('electron').app;
   if (!app.isReady()) {
     throw new Error('WinUIWindow can only be created after app.whenReady().');
   }
 
   const windowsAppSdk =
     (dependencies.loadRuntimeContract ?? loadRuntimeContract)();
-  process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH =
-    (dependencies.bootstrapDllPath ?? bootstrapDllPath)();
-  const dynwinrt = dependencies.dynwinrt ?? require('@microsoft/dynwinrt');
-  initializeWindowsAppSdk(dynwinrt.initWinappsdk, windowsAppSdk);
-  dynwinrt.roInitialize(0);
+  const {
+    hasPackageIdentity,
+    initWinappsdk,
+    roInitialize,
+  } = dependencies.dynwinrt ?? require('@microsoft/dynwinrt');
+  const { packaged } = initializeWindowsRuntime({
+    contract: windowsAppSdk,
+    env: dependencies.env,
+    hasPackageIdentity,
+    initWinappsdk,
+    resolveBootstrapDllPath:
+      dependencies.resolveBootstrapDllPath ??
+      dependencies.bootstrapDllPath ??
+      bootstrapDllPath,
+    roInitialize,
+  });
 
-  const bindings = dependencies.bindings ?? require('./bindings');
-  const existingDispatcherQueue =
-    bindings.DispatcherQueue.getForCurrentThread();
-  const dispatcherController = existingDispatcherQueue
-    ? null
-    : bindings.DispatcherQueueController.createOnCurrentThread();
-
+  let bindings;
+  let dispatcherController;
   let application;
+  let existingXamlManager;
+  let xamlManager;
   try {
+    bindings =
+      dependencies.bindings ??
+      dependencies.loadBindings?.() ??
+      require('./bindings');
+    const existingDispatcherQueue =
+      bindings.DispatcherQueue.getForCurrentThread();
+    dispatcherController = existingDispatcherQueue
+      ? null
+      : bindings.DispatcherQueueController.createOnCurrentThread();
     application =
       bindings.Application.current ??
       bindings.Application.create();
+    existingXamlManager =
+      bindings.WindowsXamlManager.getForCurrentThread();
+    xamlManager =
+      existingXamlManager ??
+      bindings.WindowsXamlManager.initializeForCurrentThread();
   } catch (error) {
-    throw new Error(
-      'WinUI initialization failed. The Electron executable must declare ' +
-        'PerMonitorV2 DPI awareness. Run `npx electron-winui prepare` before development ' +
-        'and patch packaged executables before signing.',
-      { cause: error }
-    );
+    dispatcherController?.shutdownQueue();
+    throw winUiInitializationError(error, {
+      contract: windowsAppSdk,
+      packaged,
+    });
   }
 
-  const existingXamlManager =
-    bindings.WindowsXamlManager.getForCurrentThread();
-  const xamlManager =
-    existingXamlManager ??
-    bindings.WindowsXamlManager.initializeForCurrentThread();
   let disposed = false;
 
   function dispose() {

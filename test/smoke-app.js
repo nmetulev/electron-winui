@@ -6,6 +6,12 @@ const {
   Menu,
   WinUIWindow,
 } = require('../dist');
+const {
+  FORWARDED_WEB_CONTENTS_EVENTS,
+  SUPPORTED_BROWSER_WINDOW_METHODS,
+  SUPPORTED_BROWSER_WINDOW_PROPERTIES,
+  SUPPORTED_BROWSER_WINDOW_STATIC_METHODS,
+} = require('../dist/window-api');
 
 let window;
 
@@ -38,6 +44,19 @@ app.whenReady().then(async () => {
 
   assert.equal(window instanceof BaseWindow, true);
   assert.equal(window instanceof WinUIWindow, true);
+  for (const property of SUPPORTED_BROWSER_WINDOW_PROPERTIES) {
+    assert.notEqual(window[property], undefined, `${property} is missing`);
+  }
+  for (const method of SUPPORTED_BROWSER_WINDOW_METHODS) {
+    assert.equal(typeof window[method], 'function', `${method} is missing`);
+  }
+  for (const method of SUPPORTED_BROWSER_WINDOW_STATIC_METHODS) {
+    assert.equal(
+      typeof WinUIWindow[method],
+      'function',
+      `WinUIWindow.${method} is missing`
+    );
+  }
   assert.equal(WinUIWindow.fromId(window.id), window);
   assert.equal(WinUIWindow.fromWebContents(window.webContents), window);
   assert.deepEqual(WinUIWindow.getAllWindows(), [window]);
@@ -66,6 +85,30 @@ app.whenReady().then(async () => {
   window.setTitleBarSearch(null);
   assert.equal(window.getTitleBarSearch(), null);
 
+  for (const eventName of FORWARDED_WEB_CONTENTS_EVENTS) {
+    const forwarded = new Promise((resolve) => {
+      window.once(eventName, (...args) => resolve(args));
+    });
+    const marker = { eventName };
+    window.webContents.emit(eventName, marker);
+    assert.deepEqual(await forwarded, [marker]);
+  }
+  const pageTitleUpdated = new Promise((resolve) => {
+    window.once('page-title-updated', (...args) => resolve(args));
+  });
+  const titleEvent = { defaultPrevented: true };
+  window.webContents.emit(
+    'page-title-updated',
+    titleEvent,
+    'Conformance title',
+    true
+  );
+  assert.deepEqual(await pageTitleUpdated, [
+    titleEvent,
+    'Conformance title',
+    true,
+  ]);
+
   const ready = new Promise((resolve) => {
     window.once('ready-to-show', resolve);
   });
@@ -75,9 +118,18 @@ app.whenReady().then(async () => {
   assert.match(window.webContents.getURL(), /fixture\.html$/);
   window.setMenuBarVisibility(false);
   assert.equal(window.isMenuBarVisible(), false);
+  window.setMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Replacement',
+        submenu: [{ label: 'Reload', role: 'reload' }],
+      },
+    ])
+  );
+  assert.equal(window.isMenuBarVisible(), false);
   window.setMenuBarVisibility(true);
   assert.equal(window.isMenuBarVisible(), true);
-  window.setMenu(null);
+  window.removeMenu();
   assert.equal(window.isMenuBarVisible(), false);
   window.setMenu(
     Menu.buildFromTemplate([

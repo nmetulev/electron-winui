@@ -100,19 +100,26 @@ Electron BaseWindow
    └─ unchanged Chromium renderer
 ```
 
-The package augments the native `BaseWindow` with `webContents`, `loadURL`,
-`loadFile`, `reload`, `capturePage`, menu methods, and common `BrowserWindow`
-static lookups.
+The package augments the native `BaseWindow` with the following deliberate
+`BrowserWindow`-like subset:
+
+- property: `webContents`
+- methods: `loadFile`, `loadURL`, `reload`, `capturePage`, `setMenu`,
+  `removeMenu`, `setMenuBarVisibility`, and `isMenuBarVisible`
+- static lookups: `getAllWindows`, `fromId`, `fromWebContents`, and
+  `getFocusedWindow`
+- forwarded events: `enter-html-full-screen`, `leave-html-full-screen`,
+  `responsive`, `unresponsive`, `page-title-updated`, and `ready-to-show`
 
 ## Theme the native shell and renderer
 
-Set Electron's `nativeTheme.themeSource`, pass the same source to the window,
-and notify the renderer so its CSS can follow the effective theme:
+Set Electron's `nativeTheme.themeSource` and notify the renderer so its CSS can
+follow the effective theme. Each `WinUIWindow` observes `nativeTheme` changes
+and updates its native shell automatically:
 
 ```js
 function setTheme(source) {
   nativeTheme.themeSource = source;
-  window.setTheme(source);
   window.webContents.send('theme-changed', {
     source,
     shouldUseDarkColors: nativeTheme.shouldUseDarkColors,
@@ -175,6 +182,7 @@ Supported:
 - normal `BaseWindow` bounds, show/hide, minimize/maximize, parent, and lifecycle
 - `getAllWindows`, `fromId`, `fromWebContents`, and `getFocusedWindow`
 - simple top-level Electron application menus
+- role dispatch for `close`, `reload`, and `toggleDevTools`
 - configurable titlebar icon, subtitle, and search box
 - asynchronous `dialog.showMessageBox`
 - multiple explicit `WinUIWindow` instances
@@ -185,7 +193,8 @@ Not yet supported:
 - `instanceof electron.BrowserWindow`
 - automatic conversion of renderer `window.open()` windows
 - synchronous WinUI message boxes
-- nested/check/radio menu parity and all Electron menu roles
+- nested/check/radio menu parity and Electron menu roles beyond `close`,
+  `reload`, and `toggleDevTools`
 - transparent windows, fullscreen, and docked DevTools guarantees
 - production support outside Electron 43
 
