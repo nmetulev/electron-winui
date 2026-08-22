@@ -124,6 +124,7 @@ app.whenReady().then(async () => {
   await mainWindow.loadFile(path.join(__dirname, 'uia-fixture.html'));
   await ready;
 
+  mainWindow.setTitle(windowTitle);
   mainWindow.show();
   // Preserve the readiness marker used by the repository's other Electron
   // fixtures while also emitting fixture-specific metadata for diagnostics.
