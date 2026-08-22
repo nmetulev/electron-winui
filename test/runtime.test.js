@@ -168,7 +168,10 @@ test('packaged initialization error explains supported deployment choices', () =
     () => createRuntime(dependencies),
     (error) => {
       assert.match(error.message, /packaged process/);
-      assert.match(error.message, /Microsoft\.WindowsAppRuntime\.2\.2/);
+      assert.match(
+        error.message,
+        /framework dependency generated or resolved for version 2\.2/
+      );
       assert.match(error.message, /MSIX manifest/);
       assert.match(error.message, /self-contained payload/);
       assert.match(error.message, /do not run the Windows App SDK bootstrap/);
