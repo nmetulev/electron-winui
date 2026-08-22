@@ -78,8 +78,47 @@ function initializeWindowsAppSdk(initWinappsdk, contract) {
   }
 }
 
+function initializeWindowsRuntime({
+  contract,
+  env = process.env,
+  hasPackageIdentity,
+  initWinappsdk,
+  resolveBootstrapDllPath = bootstrapDllPath,
+  roInitialize,
+}) {
+  const packaged = hasPackageIdentity();
+  if (!packaged) {
+    env.WINAPPSDK_BOOTSTRAP_DLL_PATH = resolveBootstrapDllPath();
+    initializeWindowsAppSdk(initWinappsdk, contract);
+  }
+  roInitialize(0);
+  return { packaged };
+}
+
+function winUiInitializationError(error, { contract, packaged }) {
+  if (packaged) {
+    const release = `${contract.major}.${contract.minor}`;
+    return new Error(
+      `WinUI initialization failed for a packaged process. electron-winui requires Windows App SDK ${release}. ` +
+        `Declare the matching Windows App SDK framework dependency generated or resolved for version ${release} in the MSIX manifest, ` +
+        `or stage the matching Windows App SDK ${release} self-contained payload in the application package. ` +
+        'Packaged processes do not run the Windows App SDK bootstrap.',
+      { cause: error }
+    );
+  }
+
+  return new Error(
+    'WinUI initialization failed. The Electron executable must declare ' +
+      'PerMonitorV2 DPI awareness. Run `npx electron-winui prepare` before development ' +
+      'and patch packaged executables before signing.',
+    { cause: error }
+  );
+}
+
 module.exports = {
   bootstrapDllPath,
   initializeWindowsAppSdk,
+  initializeWindowsRuntime,
   loadRuntimeContract,
+  winUiInitializationError,
 };
