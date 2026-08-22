@@ -6,6 +6,10 @@
 > This is a experimental and only tested with Electron 43. It implements a useful subset of
 > `BrowserWindow`; it is not a universal drop-in replacement.
 
+Release candidates are governed by the [trusted preview support](SUPPORT.md),
+[security policy](SECURITY.md), and [changelog](CHANGELOG.md). The repository
+does not automatically publish to npm.
+
 https://github.com/user-attachments/assets/f147160e-484b-4675-9bea-ece68e6d5885
 
 ## Create a WinUI window

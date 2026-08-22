@@ -13,18 +13,19 @@
     "build": "node scripts/build.mjs",
     "prepack": "npm run build && node scripts/verify-package-contents.mjs",
     "test": "npm run test:types && npm run test:unit && npm run test:smoke && npm run test:package",
-    "test:unit": "npm run test:version && npm run test:reliability && npm run test:menu-role && npm run test:accessibility && npm run test:api-conformance",
+    "test:unit": "npm run test:version && npm run test:reliability && npm run test:menu-role && npm run test:accessibility && npm run test:api-conformance && npm run test:package-policy",
     "test:version": "node --test test/windows-app-sdk.test.js",
     "test:reliability": "node --test test/cli.test.js test/prepare.test.js test/process.test.js test/runtime.test.js",
     "test:menu-role": "node --test test/menu-role.test.js",
     "test:accessibility": "node --test test/accessibility.test.js",
     "test:api-conformance": "node --test test/api-conformance.test.js",
+    "test:package-policy": "node --test test/package-policy.test.js",
     "test:smoke": "node --test test/window.test.js",
     "test:uia": "node --test test/uia/uia-fixture.test.js",
     "test:package": "node --test test/package.test.js",
     "test:types": "tsc -p tsconfig.test.json",
     "example": "electron example/main.js",
-    "pack:preview": "npm pack"
+    "pack:preview": "node scripts/pack-preview.mjs"
   },
   "keywords": [
     "electron",
@@ -50,7 +51,6 @@
   },
   "devDependencies": {
     "@microsoft/dynwinrt-codegen": "0.1.0-preview.19",
-    "@microsoft/winappcli": "0.6.2",
     "@types/node": "^24.0.0",
     "electron": "43.4.0",
     "typescript": "^5.9.3"

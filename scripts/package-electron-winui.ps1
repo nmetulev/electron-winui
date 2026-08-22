@@ -51,6 +51,7 @@ New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 Push-Location $PackageRoot
 $PackageJsonBackup = $null
 $PackageLockBackup = $null
+$PreviousPackDestination = $env:ELECTRON_WINUI_PACK_DESTINATION
 try {
     if ($Version) {
         $PackageJsonBackup = Join-Path $env:TEMP "electron-winui-package-$([guid]::NewGuid().ToString('N')).json"
@@ -104,7 +105,8 @@ try {
     }
 
     Write-Host "[ELECTRON-WINUI] Packing..." -ForegroundColor Blue
-    npm pack --pack-destination $OutputPath
+    $env:ELECTRON_WINUI_PACK_DESTINATION = $OutputPath
+    npm run pack:preview
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to package Electron WinUI."
     }
@@ -119,5 +121,6 @@ try {
         Copy-Item $PackageLockBackup "package-lock.json" -Force
         Remove-Item $PackageLockBackup -Force
     }
+    $env:ELECTRON_WINUI_PACK_DESTINATION = $PreviousPackDestination
     Pop-Location
 }

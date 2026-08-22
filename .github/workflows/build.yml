@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
 
 jobs:
   compatibility:
@@ -27,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -69,7 +75,7 @@ jobs:
         if: always() && matrix.uia
         uses: actions/upload-artifact@v7
         with:
-          name: native-ui-automation-node-${{ matrix.node }}
+          name: native-ui-automation-node-${{ matrix.node }}-${{ github.run_id }}-${{ github.run_attempt }}
           path: test/uia/artifacts/
           if-no-files-found: error
 
@@ -80,6 +86,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -98,11 +106,19 @@ jobs:
 
       - name: Create release candidate tarball
         shell: pwsh
+        env:
+          ELECTRON_WINUI_PACK_DESTINATION: artifacts
         run: |
           New-Item -ItemType Directory -Path artifacts | Out-Null
-          npm pack --pack-destination artifacts
-          $tarball = (Get-ChildItem artifacts -Filter *.tgz -File).FullName
-          "ELECTRON_WINUI_TARBALL=$tarball" >> $env:GITHUB_ENV
+          npm run pack:preview
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to create the policy-approved npm tarball.'
+          }
+          $tarballs = @(Get-ChildItem artifacts -Filter *.tgz -File)
+          if ($tarballs.Count -ne 1) {
+            throw "Expected exactly one npm tarball; found $($tarballs.Count)."
+          }
+          "ELECTRON_WINUI_TARBALL=$($tarballs[0].FullName)" >> $env:GITHUB_ENV
 
       - name: Install and consume release candidate
         run: npm run test:package
@@ -110,7 +126,7 @@ jobs:
       - name: Upload release candidate
         uses: actions/upload-artifact@v7
         with:
-          name: electron-winui-package
+          name: electron-winui-package-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts/*.tgz
           if-no-files-found: error
 
@@ -122,6 +138,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -129,9 +147,9 @@ jobs:
           node-version: 22.12.0
 
       - name: Download release candidate
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
-          name: electron-winui-package
+          name: electron-winui-package-${{ github.run_id }}-${{ github.run_attempt }}
           path: artifacts
 
       - name: Clean-install release candidate
