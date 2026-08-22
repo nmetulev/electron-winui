@@ -6,19 +6,22 @@ const {
 
 let runtime;
 
-function createRuntime() {
-  const { app } = require('electron');
+function createRuntime(dependencies = {}) {
+  const electron = dependencies.electron ?? require('electron');
+  const { app } = electron;
   if (!app.isReady()) {
     throw new Error('WinUIWindow can only be created after app.whenReady().');
   }
 
-  const windowsAppSdk = loadRuntimeContract();
-  process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH = bootstrapDllPath();
-  const { initWinappsdk, roInitialize } = require('@microsoft/dynwinrt');
-  initializeWindowsAppSdk(initWinappsdk, windowsAppSdk);
-  roInitialize(0);
+  const windowsAppSdk =
+    (dependencies.loadRuntimeContract ?? loadRuntimeContract)();
+  process.env.WINAPPSDK_BOOTSTRAP_DLL_PATH =
+    (dependencies.bootstrapDllPath ?? bootstrapDllPath)();
+  const dynwinrt = dependencies.dynwinrt ?? require('@microsoft/dynwinrt');
+  initializeWindowsAppSdk(dynwinrt.initWinappsdk, windowsAppSdk);
+  dynwinrt.roInitialize(0);
 
-  const bindings = require('./bindings');
+  const bindings = dependencies.bindings ?? require('./bindings');
   const existingDispatcherQueue =
     bindings.DispatcherQueue.getForCurrentThread();
   const dispatcherController = existingDispatcherQueue
@@ -74,5 +77,6 @@ function getRuntime() {
 }
 
 module.exports = {
+  createRuntime,
   getRuntime,
 };

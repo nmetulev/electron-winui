@@ -92,6 +92,9 @@ app.whenReady().then(async () => {
   window.show();
   console.log(`WINUI_WINDOW_READY:${window.id}`);
   setTimeout(() => window.close(), 500);
+}).catch((error) => {
+  console.error(error);
+  app.exit(1);
 });
 
 app.on('window-all-closed', () => {
