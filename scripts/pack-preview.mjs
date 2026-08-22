@@ -7,7 +7,8 @@ import {
 } from './package-policy.mjs';
 
 function parseArguments(arguments_) {
-  let destination = process.cwd();
+  let destination =
+    process.env.ELECTRON_WINUI_PACK_DESTINATION ?? process.cwd();
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index];
     if (argument === '--pack-destination') {

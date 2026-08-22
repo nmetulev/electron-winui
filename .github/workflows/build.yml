@@ -106,11 +106,19 @@ jobs:
 
       - name: Create release candidate tarball
         shell: pwsh
+        env:
+          ELECTRON_WINUI_PACK_DESTINATION: artifacts
         run: |
           New-Item -ItemType Directory -Path artifacts | Out-Null
-          npm run pack:preview -- --pack-destination artifacts
-          $tarball = (Get-ChildItem artifacts -Filter *.tgz -File).FullName
-          "ELECTRON_WINUI_TARBALL=$tarball" >> $env:GITHUB_ENV
+          npm run pack:preview
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Failed to create the policy-approved npm tarball.'
+          }
+          $tarballs = @(Get-ChildItem artifacts -Filter *.tgz -File)
+          if ($tarballs.Count -ne 1) {
+            throw "Expected exactly one npm tarball; found $($tarballs.Count)."
+          }
+          "ELECTRON_WINUI_TARBALL=$($tarballs[0].FullName)" >> $env:GITHUB_ENV
 
       - name: Install and consume release candidate
         run: npm run test:package
