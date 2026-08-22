@@ -1,3 +1,5 @@
+const { setAutomationProperties } = require('./accessibility');
+
 function createText(bindings, text, size, weight = 400) {
   const block = new bindings.TextBlock();
   block.text = text;
@@ -21,6 +23,10 @@ async function showContentDialog(state, options, syncShellBounds) {
   const dialog = new state.bindings.ContentDialog();
   dialog.xamlRoot = state.root.xamlRoot;
   dialog.requestedTheme = state.root.requestedTheme;
+  setAutomationProperties(state.bindings, dialog, {
+    id: 'ElectronWinUI.ContentDialog',
+    name: options.title || options.message || 'Message dialog',
+  });
   if (options.title) {
     dialog.title = createText(state.bindings, options.title, 20, 600);
   }
