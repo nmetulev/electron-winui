@@ -33,11 +33,26 @@ declare class WinUIWindow extends Electron.BaseWindow {
   getSubtitle(): string;
   getTitleBarIcon(): string | null;
   getTitleBarSearch(): Required<WinUITitleBarSearchOptions> | null;
+  isMenuBarVisible(): boolean;
+  removeMenu(): void;
   setMenu(menu: Electron.Menu | null): void;
+  setMenuBarVisibility(visible: boolean): void;
   setSubtitle(subtitle: string): void;
   setTitleBarIcon(icon: string | null): void;
   setTitleBarSearch(options: WinUITitleBarSearchOptions | null): void;
 
+  on(event: 'enter-html-full-screen', listener: () => void): this;
+  on(event: 'leave-html-full-screen', listener: () => void): this;
+  on(
+    event: 'page-title-updated',
+    listener: (
+      event: Electron.Event,
+      title: string,
+      explicitSet: boolean
+    ) => void
+  ): this;
+  on(event: 'ready-to-show', listener: () => void): this;
+  on(event: 'responsive', listener: () => void): this;
   on(
     event: 'titlebar-search-changed',
     listener: (text: string) => void
@@ -46,6 +61,7 @@ declare class WinUIWindow extends Electron.BaseWindow {
     event: 'titlebar-search-submitted',
     listener: (query: string) => void
   ): this;
+  on(event: 'unresponsive', listener: () => void): this;
   on(event: string, listener: (...args: any[]) => void): this;
 
   static fromId(id: number): WinUIWindow | null;
