@@ -104,7 +104,7 @@ try {
     }
 
     Write-Host "[ELECTRON-WINUI] Packing..." -ForegroundColor Blue
-    npm pack --pack-destination $OutputPath
+    npm run pack:preview -- --pack-destination $OutputPath
     if ($LASTEXITCODE -ne 0) {
         throw "Failed to package Electron WinUI."
     }

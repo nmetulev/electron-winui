@@ -1,0 +1,136 @@
+name: Trusted preview release candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: trusted-preview-rc-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-gates:
+    name: Full compatibility and package gates
+    permissions:
+      contents: read
+    uses: ./.github/workflows/build.yml
+
+  review-artifacts:
+    name: Checksum, SBOM, and attest exact candidate
+    needs: release-gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22.12.0
+          cache: npm
+
+      - name: Download exact gated candidate
+        uses: actions/download-artifact@v8
+        with:
+          name: electron-winui-package-${{ github.run_id }}-${{ github.run_attempt }}
+          path: review
+
+      - name: Identify candidate and create SHA-256 checksum
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tarballs=(review/*.tgz)
+          if [[ ${#tarballs[@]} -ne 1 ]]; then
+            echo "Expected exactly one npm tarball; found ${#tarballs[@]}." >&2
+            exit 1
+          fi
+
+          tarball_path="${tarballs[0]}"
+          tarball_name="$(basename "$tarball_path")"
+          package_version="$(node -p "require('./package.json').version")"
+          sbom_name="electron-winui-$package_version.cdx.json"
+          review_name="trusted-preview-review-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          (
+            cd review
+            sha256sum "$tarball_name" > "$tarball_name.sha256"
+          )
+
+          echo "review-name=$review_name" >> "$GITHUB_OUTPUT"
+          echo "sbom-name=$sbom_name" >> "$GITHUB_OUTPUT"
+          echo "sbom-path=$GITHUB_WORKSPACE/review/$sbom_name" >> "$GITHUB_OUTPUT"
+          echo "tarball-name=$tarball_name" >> "$GITHUB_OUTPUT"
+          echo "tarball-path=$GITHUB_WORKSPACE/$tarball_path" >> "$GITHUB_OUTPUT"
+
+      - name: Generate CycloneDX npm SBOM
+        shell: bash
+        env:
+          SBOM_PATH: ${{ steps.candidate.outputs.sbom-path }}
+        run: |
+          set -euo pipefail
+          npm sbom \
+            --package-lock-only \
+            --omit=dev \
+            --sbom-format cyclonedx \
+            --sbom-type library > "$SBOM_PATH"
+          node -e "
+            const fs = require('node:fs');
+            const sbom = JSON.parse(fs.readFileSync(process.env.SBOM_PATH, 'utf8'));
+            if (sbom.bomFormat !== 'CycloneDX' || !Array.isArray(sbom.components)) {
+              throw new Error('npm produced an invalid CycloneDX SBOM');
+            }
+          "
+
+      - name: Verify release candidate checksum
+        working-directory: review
+        env:
+          TARBALL_NAME: ${{ steps.candidate.outputs.tarball-name }}
+        run: sha256sum --check "$TARBALL_NAME.sha256"
+
+      - name: Attest build provenance
+        id: provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.candidate.outputs.tarball-path }}
+
+      - name: Attest CycloneDX SBOM
+        id: sbom-attestation
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.candidate.outputs.tarball-path }}
+          sbom-path: ${{ steps.candidate.outputs.sbom-path }}
+
+      - name: Collect attestation review bundles
+        shell: bash
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          PROVENANCE_URL: ${{ steps.provenance.outputs.attestation-url }}
+          SBOM_BUNDLE: ${{ steps.sbom-attestation.outputs.bundle-path }}
+          SBOM_URL: ${{ steps.sbom-attestation.outputs.attestation-url }}
+        run: |
+          set -euo pipefail
+          cp "$PROVENANCE_BUNDLE" review/provenance.sigstore.json
+          cp "$SBOM_BUNDLE" review/sbom.sigstore.json
+          printf 'Build provenance: %s\nSBOM attestation: %s\n' \
+            "$PROVENANCE_URL" "$SBOM_URL" > review/attestation-urls.txt
+
+      - name: Upload immutable review artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.candidate.outputs.review-name }}
+          path: review/
+          if-no-files-found: error
+          retention-days: 90
