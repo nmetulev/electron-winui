@@ -22,6 +22,7 @@ void checkElectronExecutable('app.exe').then((report) => {
 void prepareElectronExecutable('app.exe');
 void prepareElectronExecutable('app.exe', { dryRun: true }).then((report) => {
   void report.backupPath;
+  void report.backupRetained;
   void report.wouldModify;
 });
 const dryRun: boolean = Date.now() > 0;

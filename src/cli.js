@@ -67,6 +67,13 @@ function printReport(report, output) {
     `${report.compliant ? 'Compliant' : 'Not compliant'}: ${report.executablePath}`
   );
   output(`Signature: ${report.signatureStatus}`);
+  if (report.wouldModify) {
+    output(
+      report.backupRetained
+        ? `Backup: retain the original at ${report.backupPath}`
+        : 'Rollback: operation-scoped copy removed after successful validation'
+    );
+  }
   for (const warning of report.warnings) {
     output(`Warning: ${warning}`);
   }
@@ -107,7 +114,9 @@ async function main(arguments_ = process.argv.slice(2), dependencies = {}) {
   if (options.dryRun) {
     output(
       report.wouldModify
-        ? `Would patch and retain the original at ${report.backupPath}.`
+        ? report.backupRetained
+          ? `Would patch and retain the original at ${report.backupPath}.`
+          : 'Would patch with an operation-scoped rollback copy and remove it after validation.'
         : 'No changes would be made.'
     );
     return;
@@ -119,7 +128,11 @@ async function main(arguments_ = process.argv.slice(2), dependencies = {}) {
 
   const patched = await prepare(executablePath, apiOptions);
   output(`Applied and validated PerMonitorV2 manifest: ${patched}`);
-  output(`Original executable retained at: ${report.backupPath}`);
+  output(
+    report.backupRetained
+      ? `Original executable retained at: ${report.backupPath}`
+      : 'Operation-scoped rollback copy removed after validation.'
+  );
   output('Sign the prepared executable after this step.');
 }
 

@@ -42,7 +42,8 @@ test('check mode reports non-compliance with a distinct exit code', async () => 
   let prepared = false;
   await main(['prepare', '--check', 'app.exe'], {
     checkElectronExecutable: async (executablePath) => ({
-      backupPath: `${executablePath}.backup`,
+      backupPath: null,
+      backupRetained: false,
       compliant: false,
       executablePath,
       signatureStatus: 'unsigned',
@@ -66,6 +67,7 @@ test('dry-run reports the backup without preparing', async () => {
   await main(['prepare', '--dry-run', 'app.exe'], {
     checkElectronExecutable: async (executablePath) => ({
       backupPath: `${executablePath}.backup`,
+      backupRetained: true,
       compliant: false,
       executablePath,
       signatureStatus: 'valid',
@@ -81,5 +83,26 @@ test('dry-run reports the backup without preparing', async () => {
 
   assert.equal(process.exitCode, undefined);
   assert.match(output.join('\n'), /Would patch/);
+  assert.match(output.join('\n'), /retain the original/);
   assert.match(output.join('\n'), /Warning: sign after preparation/);
+});
+
+test('dry-run reports operation-scoped rollback by default', async () => {
+  const output = [];
+  await main(['prepare', '--dry-run', 'app.exe'], {
+    checkElectronExecutable: async (executablePath) => ({
+      backupPath: null,
+      backupRetained: false,
+      compliant: false,
+      executablePath,
+      signatureStatus: 'unsigned',
+      supported: true,
+      warnings: [],
+      wouldModify: true,
+    }),
+    output: (message) => output.push(message),
+  });
+
+  assert.match(output.join('\n'), /operation-scoped rollback copy/);
+  assert.match(output.join('\n'), /remove it after validation/);
 });

@@ -185,14 +185,28 @@ npx electron-winui prepare --check .\out\MyApp-win32-x64\MyApp.exe
 
 `--check` exits with code 2 when preparation is required. A real preparation
 patches a temporary copy in the executable's directory, extracts and compares
-the original and candidate manifests with WinAppCLI `mt.exe`, retains the
-original as `<executable>.electron-winui.backup`, and atomically renames the
-validated candidate into place. File mode and access/modified times are
+the original and candidate manifests with WinAppCLI `mt.exe`, and atomically
+renames the validated candidate into place. By default, an operation-scoped
+rollback copy is removed after post-replacement validation, so no second EXE is
+left in the packaged app directory. File mode and access/modified times are
 restored where the filesystem supports them. Editor, validation, and
-replacement failures leave or restore the original.
+replacement failures leave or restore the original and retain the rollback copy
+when needed for recovery.
 
-The validation requires every existing manifest element and attribute to
-survive unchanged except `dpiAwareness`. This preserves Electron 43's
+Persistent backup retention is opt-in:
+
+```powershell
+npx electron-winui prepare --backup D:\build-backups\MyApp.exe .\out\MyApp-win32-x64\MyApp.exe
+```
+
+The JavaScript equivalent is
+`prepareElectronExecutable(executable, { backupPath })`. Check and dry-run
+reports expose `backupRetained` and `backupPath`.
+
+The validation requires exactly one correctly-namespaced `dpiAwareness`
+declaration with PerMonitorV2 semantics. Duplicate or conflicting declarations
+are noncompliant. Every existing manifest element and attribute must survive
+unchanged except `dpiAwareness`. This preserves Electron 43's
 `disableWindowFiltering`, legacy `dpiAware`, `asInvoker` trust settings,
 Common Controls v6 dependency, and supported-OS compatibility declarations.
 Because WinAppCLI currently exposes extraction/embedding but not a semantic

@@ -25,6 +25,7 @@ type ElectronExecutableSignatureStatus =
   | 'not-checked';
 
 interface ElectronExecutableCheck {
+  backupRetained: boolean;
   backupPath: string | null;
   compliant: boolean;
   executablePath: string;

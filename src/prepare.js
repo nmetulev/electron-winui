@@ -139,11 +139,12 @@ function findDpiAwarenessNodes(
 }
 
 function manifestHasPerMonitorV2(manifestModel) {
-  return findDpiAwarenessNodes(manifestModel).some(
-    (match) =>
-      elementText(match.value)
-        .split(',')
-        .some((entry) => entry.trim().toLowerCase() === 'permonitorv2')
+  const matches = findDpiAwarenessNodes(manifestModel);
+  return (
+    matches.length === 1 &&
+    elementText(matches[0].value)
+      .split(',')
+      .some((entry) => entry.trim().toLowerCase() === 'permonitorv2')
   );
 }
 
@@ -332,9 +333,7 @@ function resolveExecutablePath(
 }
 
 function backupPathFor(target, options) {
-  return options.backupPath
-    ? path.resolve(options.backupPath)
-    : `${target}.electron-winui.backup`;
+  return options.backupPath ? path.resolve(options.backupPath) : null;
 }
 
 function resolveManifestPath(options) {
@@ -358,6 +357,7 @@ async function inspectElectronExecutable(executablePath, options) {
     return {
       manifestModel: null,
       report: {
+        backupRetained: false,
         backupPath: null,
         compliant: true,
         executablePath: target,
@@ -396,11 +396,13 @@ async function inspectElectronExecutable(executablePath, options) {
     warnings.push(SIGNATURE_WARNING);
   }
 
+  const backupPath = compliant ? null : backupPathFor(target, options);
   return {
     manifestModel,
     metadata,
     report: {
-      backupPath: compliant ? null : backupPathFor(target, options),
+      backupRetained: Boolean(backupPath),
+      backupPath,
       compliant,
       executablePath: target,
       signatureStatus,
@@ -455,19 +457,19 @@ async function pathExists(filePath, dependencies) {
 }
 
 async function restoreBackup(target, backupPath, metadata, dependencies) {
-  const rollbackPath = `${target}.${randomUUID()}.rollback`;
+  const restorationPath = `${target}.${randomUUID()}.restore`;
   const replaceFile = dependencies.restoreFile ?? fs.promises.rename;
   try {
     await copyWithMetadata(
       backupPath,
-      rollbackPath,
+      restorationPath,
       metadata,
       dependencies,
       fs.constants.COPYFILE_EXCL
     );
-    await replaceFile(rollbackPath, target);
+    await replaceFile(restorationPath, target);
   } finally {
-    await fs.promises.rm(rollbackPath, { force: true });
+    await fs.promises.rm(restorationPath, { force: true });
   }
 }
 
@@ -497,8 +499,14 @@ async function prepareElectronExecutable(executablePath, options = {}) {
   }
 
   const target = report.executablePath;
-  const backupPath = report.backupPath;
   const directory = path.dirname(target);
+  const backupPath =
+    report.backupPath ??
+    path.join(
+      directory,
+      `.${path.basename(target)}.${randomUUID()}.electron-winui.rollback.exe`
+    );
+  const retainBackup = report.backupRetained;
   const temporaryPath = path.join(
     directory,
     `.${path.basename(target)}.${randomUUID()}.electron-winui.tmp.exe`
@@ -545,6 +553,9 @@ async function prepareElectronExecutable(executablePath, options = {}) {
     const installedManifest = await extractApplicationManifest(target, options);
     validateCandidateManifest(manifestModel, installedManifest, target);
     await applyMetadata(target, metadata, options);
+    if (!retainBackup) {
+      await fs.promises.rm(backupPath);
+    }
     return target;
   } catch (error) {
     let rollbackError;
@@ -567,7 +578,9 @@ async function prepareElectronExecutable(executablePath, options = {}) {
     }
     throw new Error(
       `Executable preparation failed; the original remains at ${target}` +
-        (backupCreated ? ` and its backup remains at ${backupPath}.` : '.'),
+        (backupCreated
+          ? ` and its ${retainBackup ? 'backup' : 'rollback copy'} remains at ${backupPath}.`
+          : '.'),
       { cause: error }
     );
   } finally {

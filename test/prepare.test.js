@@ -26,6 +26,18 @@ const patchedManifest = originalManifest.replace(
   `      <dpiAware>true/pm</dpiAware>
       <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>`
 );
+const dpiAwarenessElement =
+  '      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">PerMonitorV2</dpiAwareness>';
+const duplicatePerMonitorV2Manifest = patchedManifest.replace(
+  dpiAwarenessElement,
+  `${dpiAwarenessElement}
+${dpiAwarenessElement}`
+);
+const conflictingDpiAwarenessManifest = patchedManifest.replace(
+  dpiAwarenessElement,
+  `${dpiAwarenessElement}
+      <dpiAwareness xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">system</dpiAwareness>`
+);
 
 const temporaryDirectories = [];
 
@@ -63,6 +75,12 @@ function createFixture(overrides = {}) {
     executable,
     options,
   };
+}
+
+function rollbackCopies(directory) {
+  return fs
+    .readdirSync(directory)
+    .filter((name) => name.includes('.electron-winui.rollback.exe'));
 }
 
 afterEach(() => {
@@ -114,10 +132,12 @@ test('checks and dry-runs without modifying the executable', async () => {
 
   assert.equal(check.compliant, false);
   assert.equal(check.wouldModify, true);
-  assert.equal(check.backupPath, fixture.backup);
+  assert.equal(check.backupPath, null);
+  assert.equal(check.backupRetained, false);
   assert.deepEqual(dryRun, check);
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'original executable');
   assert.equal(fs.existsSync(fixture.backup), false);
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
 });
 
 test('restores access and modified times after inspection', async () => {
@@ -158,7 +178,42 @@ test('does not accept a same-named DPI element in the wrong namespace or locatio
   }
 });
 
-test('patches a temporary copy, validates it, and retains an original backup', async () => {
+test('reports duplicate and conflicting correct-path DPI declarations as noncompliant and repairs them', async () => {
+  for (const sourceManifest of [
+    duplicatePerMonitorV2Manifest,
+    conflictingDpiAwarenessManifest,
+  ]) {
+    let edits = 0;
+    const fixture = createFixture({
+      embedManifest: async (target) => {
+        edits += 1;
+        fs.writeFileSync(target, 'patched executable');
+      },
+      extractManifest: async (target) =>
+        fs.readFileSync(target, 'utf8').includes('patched executable')
+          ? patchedManifest
+          : sourceManifest,
+    });
+
+    const check = await checkElectronExecutable(
+      fixture.executable,
+      fixture.options
+    );
+    assert.equal(check.compliant, false);
+
+    await prepareElectronExecutable(fixture.executable, fixture.options);
+    assert.equal(edits, 1);
+    assert.equal(
+      (
+        await checkElectronExecutable(fixture.executable, fixture.options)
+      ).compliant,
+      true
+    );
+    assert.deepEqual(rollbackCopies(fixture.directory), []);
+  }
+});
+
+test('patches a temporary copy and removes the default rollback copy after success', async () => {
   const fixture = createFixture();
   const originalStat = fs.statSync(fixture.executable);
 
@@ -169,10 +224,27 @@ test('patches a temporary copy, validates it, and retains an original backup', a
 
   assert.equal(patched, fixture.executable);
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'patched executable');
-  assert.equal(fs.readFileSync(fixture.backup, 'utf8'), 'original executable');
+  assert.equal(fs.existsSync(fixture.backup), false);
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
   assert.ok(
     Math.abs(fs.statSync(fixture.executable).mtimeMs - originalStat.mtimeMs) < 2
   );
+});
+
+test('retains an explicit backup after successful preparation', async () => {
+  const fixture = createFixture();
+  const options = {
+    ...fixture.options,
+    backupPath: fixture.backup,
+  };
+  const check = await checkElectronExecutable(fixture.executable, options);
+
+  assert.equal(check.backupRetained, true);
+  assert.equal(check.backupPath, fixture.backup);
+  await prepareElectronExecutable(fixture.executable, options);
+
+  assert.equal(fs.readFileSync(fixture.backup, 'utf8'), 'original executable');
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
 });
 
 test('leaves the original untouched when the resource editor fails', async () => {
@@ -188,6 +260,7 @@ test('leaves the original untouched when the resource editor fails', async () =>
   );
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'original executable');
   assert.equal(fs.existsSync(fixture.backup), false);
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
 });
 
 test('leaves the original untouched when candidate validation fails', async () => {
@@ -201,6 +274,7 @@ test('leaves the original untouched when candidate validation fails', async () =
   );
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'original executable');
   assert.equal(fs.existsSync(fixture.backup), false);
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
 });
 
 test('rejects a candidate that drops existing manifest content', async () => {
@@ -228,10 +302,15 @@ test('rolls back from the backup when replacement is interrupted', async () => {
 
   await assert.rejects(
     prepareElectronExecutable(fixture.executable, fixture.options),
-    /backup remains/
+    /rollback copy remains/
   );
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'original executable');
-  assert.equal(fs.readFileSync(fixture.backup, 'utf8'), 'original executable');
+  const [rollbackCopy] = rollbackCopies(fixture.directory);
+  assert.ok(rollbackCopy);
+  assert.equal(
+    fs.readFileSync(path.join(fixture.directory, rollbackCopy), 'utf8'),
+    'original executable'
+  );
 });
 
 test('rolls back when validation fails after replacement', async () => {
@@ -245,10 +324,15 @@ test('rolls back when validation fails after replacement', async () => {
 
   await assert.rejects(
     prepareElectronExecutable(fixture.executable, fixture.options),
-    /backup remains/
+    /rollback copy remains/
   );
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'original executable');
-  assert.equal(fs.readFileSync(fixture.backup, 'utf8'), 'original executable');
+  const [rollbackCopy] = rollbackCopies(fixture.directory);
+  assert.ok(rollbackCopy);
+  assert.equal(
+    fs.readFileSync(path.join(fixture.directory, rollbackCopy), 'utf8'),
+    'original executable'
+  );
 });
 
 test('does not overwrite an existing backup', async () => {
@@ -256,7 +340,10 @@ test('does not overwrite an existing backup', async () => {
   fs.writeFileSync(fixture.backup, 'existing backup');
 
   await assert.rejects(
-    prepareElectronExecutable(fixture.executable, fixture.options),
+    prepareElectronExecutable(fixture.executable, {
+      ...fixture.options,
+      backupPath: fixture.backup,
+    }),
     /original remains/
   );
   assert.equal(fs.readFileSync(fixture.executable, 'utf8'), 'original executable');
@@ -282,9 +369,11 @@ test('does not edit or create a backup for already-compliant input', async () =>
 
   assert.equal(check.compliant, true);
   assert.equal(check.wouldModify, false);
+  assert.equal(check.backupRetained, false);
   assert.equal(check.backupPath, null);
   assert.equal(result, fixture.executable);
   assert.equal(fs.existsSync(fixture.backup), false);
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
 });
 
 test('warns about signed binaries and requires explicit invalidation consent', async () => {
@@ -312,5 +401,6 @@ test('warns about signed binaries and requires explicit invalidation consent', a
 
   await prepareElectronExecutable(fixture.executable, fixture.options);
   assert.deepEqual(warnings, [SIGNATURE_WARNING]);
-  assert.equal(fs.readFileSync(fixture.backup, 'utf8'), 'original executable');
+  assert.equal(fs.existsSync(fixture.backup), false);
+  assert.deepEqual(rollbackCopies(fixture.directory), []);
 });

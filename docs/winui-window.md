@@ -152,13 +152,18 @@ await prepareElectronExecutable('out/MyApp-win32-x64/MyApp.exe');
 
 Use `checkElectronExecutable(path)` or `electron-winui prepare --check <path>`
 to report compliance without changing the file. `prepare --dry-run` reports the
-planned backup and signing state.
+rollback lifecycle and signing state.
 
 Preparation uses WinAppCLI `mt.exe` against a same-directory temporary copy,
 verifies PerMonitorV2 semantically, and verifies that all other manifest
-elements and attributes match before an atomic replacement. The original is
-retained as `<executable>.electron-winui.backup`; replacement failures restore
-it. File mode and timestamps are preserved where practical.
+elements and attributes match before an atomic replacement. Exactly one
+correctly-namespaced `dpiAwareness` declaration is required; duplicates and
+conflicts are noncompliant. The default operation-scoped rollback copy is
+removed after successful validation, so it cannot bloat a packaged layout.
+Replacement failures restore the original and retain recovery material when
+needed. Pass `backupPath` in JavaScript or `--backup <path>` on the CLI to
+retain a persistent backup explicitly. File mode and timestamps are preserved
+where practical.
 
 Electron's `disableWindowFiltering`, legacy `dpiAware`, `asInvoker` trust
 settings, Common Controls v6 dependency, and OS compatibility declarations are
