@@ -11,10 +11,14 @@
     "restore": "node scripts/winapp.mjs restore",
     "generate": "node scripts/winapp.mjs generate",
     "build": "node scripts/build.mjs",
-    "test": "npm run test:types && node --test test/*.test.js",
+    "prepack": "npm run build && node scripts/verify-package-contents.mjs",
+    "test": "npm run test:types && npm run test:unit && npm run test:smoke && npm run test:package",
+    "test:unit": "node --test test/prepare.test.js test/process.test.js test/runtime.test.js test/windows-app-sdk.test.js",
+    "test:smoke": "node --test test/window.test.js",
+    "test:package": "node --test test/package.test.js",
     "test:types": "tsc -p tsconfig.test.json",
     "example": "electron example/main.js",
-    "pack:preview": "npm run build && npm pack"
+    "pack:preview": "npm pack"
   },
   "keywords": [
     "electron",
