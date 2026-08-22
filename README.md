@@ -224,5 +224,31 @@ To produce a tarball, use the packaging script:
 installed as a dev dependency. `.winapp/`, `dist/`, and `artifacts/` are
 generated and are not committed.
 
-See [`docs/winui-window.md`](docs/winui-window.md) for the standalone guide.
+### Windows App SDK version contract
 
+The `Microsoft.WindowsAppSDK` pin in `winapp.yaml` is the package-owned default
+for restore, generated bindings, build, packaging, and runtime bootstrap. The
+build validates `.winapp/winmds.lock.json` against that pin, copies only a
+matching bootstrap DLL, and embeds the resolved major/minor release in `dist`.
+
+For an explicit developer override, set
+`ELECTRON_WINUI_WINAPPSDK_VERSION` to a full NuGet version for every command:
+
+```powershell
+$env:ELECTRON_WINUI_WINAPPSDK_VERSION = '2.1.0'
+npm run restore
+npm run generate
+npm run build
+```
+
+This override rebuilds the electron-winui package itself; downstream app-level
+runtime selection belongs to deployment integration. The override never changes
+`winapp.yaml`. Production runtime does not honor
+`WINAPPSDK_BOOTSTRAP_DLL_PATH`; it always loads the package-owned bootstrap DLL
+selected and validated during the build. Runtime initialization is idempotent
+when the process package graph already selected the same major/minor release.
+If the Electron host or another dependency selected a different release first,
+electron-winui fails with the required release instead of attempting to replace
+the process-wide package graph.
+
+See [`docs/winui-window.md`](docs/winui-window.md) for the standalone guide.

@@ -8,8 +8,8 @@
     "electron-winui": "dist/cli.js"
   },
   "scripts": {
-    "restore": "winapp restore",
-    "generate": "winapp node generate-bindings",
+    "restore": "node scripts/winapp.mjs restore",
+    "generate": "node scripts/winapp.mjs generate",
     "build": "node scripts/build.mjs",
     "test": "npm run test:types && node --test test/*.test.js",
     "test:types": "tsc -p tsconfig.test.json",
@@ -49,6 +49,7 @@
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "dist/**/*.dll",
+    "dist/**/*.json",
     "dist/**/*.manifest",
     "README.md"
   ],
