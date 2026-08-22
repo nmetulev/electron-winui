@@ -141,6 +141,10 @@ records `ControlType` and `ClassName` if a Windows App SDK version stops
 surfacing them. It does not weaken the audit to Name-only selection or add a
 custom dialog template.
 
+WinUI surfaces the host's attached AutomationId on both the popup `Window`
+peer and the nested `Group` peer. The host assertion targets the `Group`
+peer explicitly, while the inspect snapshot retains both for diagnostics.
+
 Only native elements this library deliberately identifies are audited.
 Chromium content in the fixture is out of scope; this is a native XAML
 surface audit, not a web accessibility audit.

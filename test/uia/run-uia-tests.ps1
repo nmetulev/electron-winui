@@ -173,14 +173,23 @@ function Invoke-WinappJson {
 # documented selector-slug mechanism instead of relying on substring
 # matching of the raw AutomationId string at invoke/get-property time.
 function Resolve-ExactSelector {
-  param([Parameter(Mandatory)][string]$AutomationId, [Parameter(Mandatory)][string]$FriendlyName, [Parameter(Mandatory)][int]$TargetPid)
+  param(
+    [Parameter(Mandatory)][string]$AutomationId,
+    [Parameter(Mandatory)][string]$FriendlyName,
+    [Parameter(Mandatory)][int]$TargetPid,
+    [string]$ControlType
+  )
   $found = Invoke-WinappJson -Args @('ui', 'search', $AutomationId, '-a', "$TargetPid")
   $exact = @($found.matches | Where-Object { $_.automationId -eq $AutomationId })
+  if ($ControlType) {
+    $exact = @($exact | Where-Object { $_.type -eq $ControlType })
+  }
+  $typeDescription = if ($ControlType) { " with type '$ControlType'" } else { '' }
   if ($exact.Count -eq 0) {
-    throw "No element found with exact AutomationId '$AutomationId' ($FriendlyName). search returned matchCount=$($found.matchCount)."
+    throw "No element found with exact AutomationId '$AutomationId'$typeDescription ($FriendlyName). search returned matchCount=$($found.matchCount)."
   }
   if ($exact.Count -gt 1) {
-    throw "Ambiguous: $($exact.Count) elements share AutomationId '$AutomationId' ($FriendlyName)."
+    throw "Ambiguous: $($exact.Count) elements share AutomationId '$AutomationId'$typeDescription ($FriendlyName)."
   }
   return $exact[0].selector
 }
@@ -402,7 +411,7 @@ try {
   Save-Screenshot -Name '03-content-dialog-open.png'
   Save-InspectSnapshot -Name 'inspect-content-dialog.json'
   Invoke-UiaCheck -Name 'ContentDialog host has AutomationId + Name' -Script {
-    $selector = Resolve-ExactSelector -AutomationId $Ids.ContentDialogHost -FriendlyName 'ContentDialog host' -TargetPid $AppPid
+    $selector = Resolve-ExactSelector -AutomationId $Ids.ContentDialogHost -FriendlyName 'ContentDialog host' -TargetPid $AppPid -ControlType 'Group'
     $props = Invoke-WinappJson -Args @('ui', 'get-property', $selector, '-a', "$AppPid")
     if ($props.properties.Name -ne $ExpectedNames.ContentDialogHost) {
       throw "ContentDialog host Name was '$($props.properties.Name)', expected '$($ExpectedNames.ContentDialogHost)'."
